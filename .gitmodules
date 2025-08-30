@@ -4,3 +4,6 @@
 [submodule "external/libigl"]
 	path = external/libigl
 	url = https://github.com/libigl/libigl.git
+[submodule "external/cereal"]
+	path = external/cereal
+	url = https://github.com/USCiLab/cereal.git
