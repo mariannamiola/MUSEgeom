@@ -1,0 +1,14 @@
+prefix=/Users/mariannamiola/muse/external/PROJ/installed
+libdir=${prefix}/lib
+includedir=${prefix}/include
+datarootdir=${prefix}/share
+datadir=${datarootdir}/proj
+
+Name: PROJ
+Description: Coordinate transformation software library
+Requires:
+Version: 9.5.0
+Libs: -L${libdir} -lproj
+Libs.private: -lc++ -lm -ldl
+Requires.private: sqlite3 libtiff-4
+Cflags: -I${includedir}
