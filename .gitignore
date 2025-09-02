@@ -47,4 +47,5 @@ CMakeLists.txt.user
 bin/
 
 # results
-examples/TEST
+examples/data
+examples/TEST/out
