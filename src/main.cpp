@@ -102,17 +102,17 @@ int main(int argc, char** argv)
 
 
     // Option 0. New project creation
-    ValueArg<std::string> projectFolder ("p", "pdir", "Project directory", false, "Directory", "path", cmd);
+    ValueArg<std::string> projectFolder ("p", "pdir", "Set project directory", false, "Directory", "path", cmd);
 
     // Option 0a. Project creation - optional: setting project EPSG
-    ValueArg<std::string> setEPSG       ("", "setEPSG", "Set project EPSG", false, "Unknown", "authority", cmd);
+    ValueArg<std::string> setEPSG       ("", "setEPSG", "Set project EPSG. TO TEST.", false, "Unknown", "authority", cmd);
 
 
     // Option 1. Reading vector file (+ flag for triangulation)
     // Include: shape (.shp), geopackage (.gpkg)
     SwitchArg loadVector                ("V", "vector", "Load Vector file", cmd, false); //booleano
     SwitchArg setSave                   ("", "save", "Saving data content of geospatial files", cmd, false); //booleano
-    SwitchArg setSaveAttributesTable    ("", "attribute", "Save attribute table from geospatial file", cmd, false); //booleano
+    SwitchArg setSaveAttributesTable    ("", "attribute", "Export attribute table from geospatial file", cmd, false); //booleano
 
 
     // Option 2. Reading raster file (+ flag for triangulation)
@@ -149,7 +149,6 @@ int main(int argc, char** argv)
     ValueArg<double> setResz            ("", "resz", "Set z resolution", false, 1.0, "double", cmd);
 
     SwitchArg polygonFlag               ("", "poly", "Set generic polygon mesh for 2D meshing", cmd, false); //booleano
-    //ValueArg<std::string> setFeatures   ("", "features", "Set features", false, "DEFAULT", "string" , cmd);
 
     ValueArg<int> subSet                ("", "subset", "Set (random) subset of points", false, 10,"int", cmd); //booleano
 
@@ -250,13 +249,46 @@ int main(int argc, char** argv)
     Project.setFolder(projectFolder.getValue()); //cartella di progetto
     Project.setName(Project.folder.substr(Project.folder.find_last_of("/")+1, Project.folder.length()));
 
+    // 0) Commands
+    std::string command;
+
+    filesystem::path abspath = argv[3];
+
+    for(int i=1; i< argc; i++)
+    {
+        std::string string = argv[i];
+        if(string.find(abspath) != std::string::npos)
+        {
+            //std::cout << "Path: " << argv[i] << std::endl;
+
+            filesystem::path path = argv[i];
+            filesystem::path relpath = filesystem::relative(path, abspath);
+            //std::cout << "Relative path: " << relpath << std::endl;
+
+            if(relpath.string().length() > 1)
+                command += "./" + relpath.string();
+            else
+                command += relpath;
+            command += " ";
+        }
+        else
+        {
+            command += argv[i];
+            command += " ";
+        }
+    }
+    std::cout << "=== Command line: " << command << std::endl;
+    std::cout << "=== Number of command arguments: " << argc << std::endl;
+
     // 0) Set folder (in/out)
     std::string in_geometry = Project.folder + "/in";
     std::string out_geometry = Project.folder + "/out";
     std::string out_surf = out_geometry +"/surf";
     std::string out_volume = out_geometry +"/volume";
 
-    std::string command = "";
+    std::cout << "=== Absolute path: " << abspath << std::endl;
+    std::cout << "=== Output folder: " << out_geometry << std::endl;
+    std::cout << std::endl;
 
     // 0) Define file extension - surface
     std::string ext_surf = ".off";
@@ -267,6 +299,49 @@ int main(int argc, char** argv)
     std::string ext_vol = ".mesh";
     if(vtkConversion.isSet() == true)
         ext_vol = ".vtk";
+
+
+    ////////////////////////////////////////////////
+    ///
+    /// Lambda per applicare rotazione ai punti
+    ///
+    //Configurazione rotazione
+    bool rotation_active = setRotAxis.isSet();
+    MUSE::Rotation dataRotation;
+
+    if(rotation_active)
+    {
+        dataRotation.rotation = true;
+        dataRotation.rotation_axis = setRotAxis.getValue();
+        dataRotation.rotation_center_x = setRotCenterX.getValue();
+        dataRotation.rotation_center_y = setRotCenterY.getValue();
+        dataRotation.rotation_center_z = setRotCenterZ.getValue();
+        dataRotation.rotation_angle = setRotAngle.getValue();
+
+        std::cout << "=== Rotation activated: axis=" << dataRotation.rotation_axis << std::endl;
+        std::cout << "=== Rotation center: [" << dataRotation.rotation_center_x << "; " << dataRotation.rotation_center_y << "; " << dataRotation.rotation_center_z << "]" <<  std::endl;
+        std::cout << "=== Rotation angle (degree): " << dataRotation.rotation_angle << std::endl;
+        std::cout << std::endl;
+    }
+
+    auto applyRotation = [&](std::vector<Point3D>& points)
+    {
+        if(!rotation_active) return;
+
+        const cinolib::vec3d axis = set_rotation_axis(dataRotation.rotation_axis);
+        const cinolib::vec3d center(dataRotation.rotation_center_x,
+                                    dataRotation.rotation_center_y,
+                                    dataRotation.rotation_center_z);
+
+        for(auto& point : points) {
+            cinolib::vec3d sample(point.x, point.y, point.z);
+            sample = point_rotation(sample, axis, dataRotation.rotation_angle, center);
+            point.x = sample.x();
+            point.y = sample.y();
+            point.z = sample.z();
+        }
+        std::cout << "=== Applying rotation ... COMPLETED." << std::endl;
+    };
 
 
     ///
@@ -284,6 +359,8 @@ int main(int argc, char** argv)
         std::vector<std::string> excommands = {command};
         geometa.setCommands(excommands);
 
+        geometa.setDataRotation(dataRotation);
+
         MUSE::GeospatialData Geometry;
 
         // Check on input files
@@ -292,49 +369,6 @@ int main(int argc, char** argv)
             std::cerr << "\033[0;31mInput ERROR: Insert file into: " << in_geometry << "\033[0m" << std::endl;
             exit(1);
         }
-
-        //Configurazione rotazione
-        bool rotation_active = setRotAxis.isSet();
-        MUSE::Rotation dataRotation;
-
-        if(rotation_active)
-        {
-            dataRotation.rotation = true;
-            dataRotation.rotation_axis = setRotAxis.getValue();
-            dataRotation.rotation_center_x = setRotCenterX.getValue();
-            dataRotation.rotation_center_y = setRotCenterY.getValue();
-            dataRotation.rotation_center_z = setRotCenterZ.getValue();
-            dataRotation.rotation_angle = setRotAngle.getValue();
-
-            geometa.setDataRotation(dataRotation);
-
-            std::cout << "=== Rotation activated: axis=" << dataRotation.rotation_axis << std::endl;
-            std::cout << "=== Rotation center: [" << dataRotation.rotation_center_x << "; " << dataRotation.rotation_center_y << "; " << dataRotation.rotation_center_z << "]" <<  std::endl;
-            std::cout << "=== Rotation angle (degree): " << dataRotation.rotation_angle << std::endl;
-            std::cout << std::endl;
-        }
-
-        ////////////////////////////////////////////////
-        ///
-        /// Lambda per applicare rotazione ai punti
-        ///
-        auto applyRotation = [&](std::vector<Point3D>& points) {
-            if(!rotation_active) return;
-
-            const cinolib::vec3d axis = set_rotation_axis(dataRotation.rotation_axis);
-            const cinolib::vec3d center(dataRotation.rotation_center_x,
-                                        dataRotation.rotation_center_y,
-                                        dataRotation.rotation_center_z);
-
-            for(auto& point : points) {
-                cinolib::vec3d sample(point.x, point.y, point.z);
-                sample = point_rotation(sample, axis, dataRotation.rotation_angle, center);
-                point.x = sample.x();
-                point.y = sample.y();
-                point.z = sample.z();
-            }
-            std::cout << "=== Applying rotation ... COMPLETED." << std::endl;
-        };
 
         ///
         /// Lambda per trasformazione coordinate
@@ -351,6 +385,7 @@ int main(int argc, char** argv)
             }
             std::cout << "=== Coordinate transformation ... COMPLETED." << std::endl;
         };
+
 
         // Elaborazione directories
         std::vector<std::string> dirs = get_directories(in_geometry);
@@ -1134,21 +1169,24 @@ int main(int argc, char** argv)
                         std::vector<Point3D> boundary;
                         load_xyzfile(setBoundary.getValue(), boundary);
 
-                        if(setRotAxis.isSet())
-                        {
-                            for(size_t k = 0; k < boundary.size(); k++)
-                            {
-                                cinolib::vec3d sample(boundary.at(k).x, boundary.at(k).y, boundary.at(k).z);
-                                cinolib::vec3d axis = set_rotation_axis(setRotAxis.getValue());
-                                cinolib::vec3d c(setRotCenterX.getValue(), setRotCenterY.getValue(), setRotCenterZ.getValue());
+                        geometa.setDataRotation(dataRotation);
+                        applyRotation(boundary);
 
-                                sample = point_rotation(sample, axis, setRotAngle.getValue(), c);
+                        // if(setRotAxis.isSet())
+                        // {
+                        //     for(size_t k = 0; k < boundary.size(); k++)
+                        //     {
+                        //         cinolib::vec3d sample(boundary.at(k).x, boundary.at(k).y, boundary.at(k).z);
+                        //         cinolib::vec3d axis = set_rotation_axis(setRotAxis.getValue());
+                        //         cinolib::vec3d c(setRotCenterX.getValue(), setRotCenterY.getValue(), setRotCenterZ.getValue());
 
-                                boundary.at(k).x = sample.x();
-                                boundary.at(k).y = sample.y();
-                                boundary.at(k).z = sample.z();
-                            }
-                        }
+                        //         sample = point_rotation(sample, axis, setRotAngle.getValue(), c);
+
+                        //         boundary.at(k).x = sample.x();
+                        //         boundary.at(k).y = sample.y();
+                        //         boundary.at(k).z = sample.z();
+                        //     }
+                        // }
 
                         paramSurface.opt = "";
 
@@ -1198,6 +1236,940 @@ int main(int argc, char** argv)
                 geometa.write(out_rast + "/" + Geometry.getName() + ".json");
             }
         }
+    }
+
+
+    ///
+    /// Surface modeling by loading point cloud
+    ///
+    if(loadPointCloud.isSet())
+    {
+        // Check on input files (.txt, .dat)
+        if(filesystem::is_empty(in_geometry))
+        {
+            std::cerr << "\033[0;31mInput ERROR: Insert file into: " << in_geometry << "\033[0m" << std::endl;
+            exit(1);
+        }
+
+        std::vector<std::string> file_list = get_xyzfiles(in_geometry);
+        if (file_list.empty())
+        {
+            std::cerr << "\033[0;31mInput ERROR: NO datafile (.txt, .dat, .xyz) in the folder"<< in_geometry << "\033[0m" << std::endl;
+            exit(1);
+        }
+
+
+        if(triFlag.isSet() || gridFlag.isSet())
+        {
+            if(!filesystem::exists(out_surf))
+                filesystem::create_directory(out_surf);
+        }
+        else
+        {
+            std::cerr << "=== ERROR: Set --tri/--grid for creating mesh." << std::endl;
+            exit(1);
+        }
+
+        // Setup metadata
+        MUSE::SurfaceMeta geometa;
+        geometa.setProject(Project);
+
+        std::vector<std::string> deps;
+
+        std::vector<std::string> excommands;
+        excommands.push_back(command);
+        geometa.setCommands(excommands);
+
+        if(!setPoints.isSet() && !setPolygon.isSet())
+        {
+            std::cout << FRED("ERROR: Set --points <filename> or --polygon <filename>.") << std::endl;
+            exit(1);
+        }
+
+        //apro i file con la specifica della geometria (NO LOADING AUTOMATICO!!)
+        //perchè per le point cloud non ho la possibilità di definire da qualche parte il tipo (come in gdal)
+        MUSE::GeospatialData Geometry;
+        if(setPoints.isSet())
+        {
+            Geometry.setName(setPoints.getValue().substr(setPoints.getValue().find_last_of("/")+1, setPoints.getValue().length()));
+            Geometry.format = get_extension(Geometry.name);
+            Geometry.name = get_basename(Geometry.name);
+
+            Geometry.geom_type = geomType::POINT;
+
+            if(setPoints.getValue().find(abspath) != std::string::npos)
+            {
+                filesystem::path realpath = filesystem::relative(setPoints.getValue(), abspath);
+                deps.push_back(realpath);
+            }
+        }
+
+        if(setPolygon.isSet())
+        {
+            Geometry.setName(setPolygon.getValue().substr(setPolygon.getValue().find_last_of("/")+1, setPolygon.getValue().length()));
+            Geometry.format = get_extension(Geometry.name);
+            Geometry.name = get_basename(Geometry.name);
+
+            Geometry.geom_type = geomType::POLYGON;
+
+            if(setPolygon.getValue().find(abspath) != std::string::npos)
+            {
+                filesystem::path realpath = filesystem::relative(setPolygon.getValue(), abspath);
+                deps.push_back(realpath);
+            }
+        }
+
+        geometa.setGeospatialData(Geometry);
+        geometa.setDependencies(deps);
+
+
+        //per salvataggio mesh
+        std::string out_mesh = out_surf + "/"+ Geometry.name;
+        out_mesh = out_mesh + ext_surf;
+
+
+        // Procedo con la triangolazione in base al tipo di geometria
+        MUSE::Surface Surface;
+        MUSE::Surface::Parameters paramSurface;
+
+        //il file è di tipo DATA -> POINT
+        switch (Geometry.geom_type)
+        {
+        case POLYGON:
+        {
+            std::vector<Point3D> boundary;
+            load_xyzfile(setPolygon.getValue(), boundary);
+
+            if(boundary.size() == 0)
+            {
+                std::cerr << "ERROR on loading points" << std::endl;
+                exit(1);
+            }
+
+
+            MUSE::SurfaceMeta::DataSummary dataSummary;
+            dataSummary.setDataSummary(boundary);
+            geometa.setDataSummary(dataSummary);
+
+            applyRotation(boundary);
+            geometa.setDataRotation(dataRotation);
+
+            if(triFlag.isSet())
+            {
+                cinolib::Trimesh<> trimesh;
+                trimesh.clear();
+
+                paramSurface.type = "TRIMESH";
+                paramSurface.opt = "";
+                paramSurface.boundary = "FIXED BOUNDARY";
+
+                std::cout << "WARNING: Triangulation is performed on XY plane." << std::endl;
+                std::cout << "WARNING: Set --rotaxis <axis>, --rotcx <double>, --rotcy <double>, --rotcz <double>, --rotangle <degree> to perform data rotation." << std::endl;
+                std::cout << std::endl;
+
+                if(optFlag.isSet())
+                    paramSurface.opt = paramSurface.opt + optFlag.getValue();
+
+                trimesh = boundary_triangulation(boundary, paramSurface.opt);
+
+                if(trimesh.num_verts() > boundary.size())
+                {
+                    std::cout << std::endl;
+                    std::cout << "Restore z for additional points ..." << std::endl;
+                    if(setMethodZ.getValue().compare("CONSTANT") == 0)
+                    {
+                        std::cout << "Constant value " << setNewZ.getValue() << " is set for Z additional points." << std::endl;
+                        for(uint vid=boundary.size(); vid < trimesh.num_verts(); vid++)
+                            trimesh.vert(vid).z() = setNewZ.getValue();
+                    }
+                    else if (setMethodZ.getValue().compare("MEAN") == 0)
+                    {
+                        std::cout << "Interpolation method is adopted to set z for additional points ... NOT ACTIVE." << std::endl;
+                    //     fittedPlane plane = fitPlane(boundary);
+                    //     for(uint vid=boundary.size(); vid < trimesh.num_verts(); vid++)
+                    //         trimesh.vert(vid).z() = (trimesh.vert(vid).x()-plane.meanX)*plane.meanA0+(trimesh.vert(vid).y()-plane.meanY)*plane.meanA1 + plane.meanZ;
+                    //
+                    }
+                    else if (setMethodZ.getValue().compare("NEAR") == 0)
+                    {
+                        std::cerr << "NEAR NOT ACTIVE!" << std::endl;
+                        exit(1);
+                    }
+                    else
+                    {
+                        std::cerr << "No valid interpolation method is set!" << std::endl;
+                        exit(1);
+                    }
+                    std::cout << "Restore z for additional points ... COMPLETED." << std::endl;
+                    std::cout << std::endl;
+                }
+
+                remove_isolate_vertices(trimesh);
+
+                Surface.setSummary(trimesh);
+                trimesh.save(out_mesh.c_str());
+            }
+
+            else if(gridFlag.isSet())
+            {
+                std::cout << std::endl;
+                std::cout << "Resolution in X direction: " << setResx.getValue() << std::endl;
+                std::cout << "Resolution in Y direction: " << setResy.getValue() << std::endl;
+                std::cout << "Set --resx <value>, --resy <value> to modify default resolutions." << std::endl;
+                std::cout << std::endl;
+
+                //FOR JSON ...
+                paramSurface.type = "QUADMESH";
+                paramSurface.resx = setResx.getValue();
+                paramSurface.resy = setResy.getValue();
+                paramSurface.resz = 0.0;
+
+                MUSE::Quadmesh<> quadmesh (setResx.getValue(), setResy.getValue(), setNewZ.getValue(), boundary);
+                quadmesh.save(out_mesh.c_str());
+
+                Surface.setSummary(quadmesh);
+            }
+
+            std::cout << std::endl;
+            std::cout << "\033[0;32mSaving mesh file: " << out_mesh << "\033[0m" << std::endl;
+            std::cout << std::endl;
+
+            Surface.setParameters(paramSurface);
+
+            geometa.setMeshSummary(Surface);
+            geometa.setGeospatialData(Geometry);
+            geometa.write(out_surf +"/"+ Geometry.name + ".json");
+
+            break;
+        }
+        case MULTI:
+        {
+            std::cout << FYEL("MULTI CASE: NOTING TO DO.") << std::endl;
+            break;
+        }
+        case POINT:
+        {
+            std::vector<Point3D> data, uniq_data;
+            load_xyzfile(setPoints.getValue(), data);
+
+            if(data.size() == 0)
+            {
+                std::cerr << "ERROR on loading points" << std::endl;
+                exit(1);
+            }
+
+            MUSE::SurfaceMeta::DataSummary dataSummary;
+            dataSummary.setDataSummary(data);
+            geometa.setDataSummary(dataSummary);
+
+            applyRotation(data);
+            geometa.setDataRotation(dataRotation);
+
+            if(subSet.isSet())
+            {
+                srand(time(NULL));
+                std::vector<size_t> random_id(subSet.getValue());
+                for (size_t i = 0; i < subSet.getValue(); i++)
+                {
+                    random_id[i] = rand() % data.size();
+                    //std::cout << "rand ID: " << random_id[i] << std::endl;
+                }
+
+                std::sort(random_id.begin(), random_id.end());
+                random_id.erase(std::unique( random_id.begin(), random_id.end() ), random_id.end() );
+
+                std::vector<Point3D> data_rand=data;
+                data.clear();
+                for(int rid:random_id)
+                    data.push_back(data_rand.at(rid));
+                std::cout << "### Size of data vector (before random sampling): " << data_rand.size() << std::endl;
+                std::cout << "### New size of data vector (after random sampling): " << data.size() << std::endl;
+                std::cout << std::endl;
+
+                std::string filename_rand = "_subset.xyz";
+                export3d_xyz(out_surf + "/" + filename_rand, data);
+            }
+
+            if(triFlag.isSet())
+            {
+                cinolib::Trimesh<> trimesh;
+                trimesh.clear();
+
+                //FOR JSON ...
+                paramSurface.type = "TRIMESH";
+
+                std::cout << "WARNING: Triangulation is performed on XY plane." << std::endl;
+
+                //Convex hull
+                if (convexFlag.isSet())
+                {
+                    remove_duplicates_test_opt(data, uniq_data);
+
+                    paramSurface.opt = "c";
+
+                    if(optFlag.isSet())
+                        paramSurface.opt = paramSurface.opt + optFlag.getValue();
+
+                    trimesh.clear();
+                    trimesh = points_triangulation(uniq_data, paramSurface.opt);
+
+                    if(trimesh.num_verts() > uniq_data.size())
+                    {
+                        std::cout << std::endl;
+                        std::cout << "Restore z for additional points ..." << std::endl;
+                        if(setMethodZ.getValue().compare("CONSTANT") == 0)
+                        {
+                            std::cout << "Constant value " << setNewZ.getValue() << " is set for Z additional points." << std::endl;
+                            for(uint vid=uniq_data.size(); vid < trimesh.num_verts(); vid++)
+                                trimesh.vert(vid).z() = setNewZ.getValue();
+                        }
+                        else if (setMethodZ.getValue().compare("MEAN") == 0)
+                        {
+                            std::cout << "Interpolation method is adopted to set z for additional points ... NOT ACTIVE." << std::endl;
+                            // fittedPlane plane = fitPlane(uniq_data);
+                            // for(uint vid=uniq_data.size(); vid < trimesh.num_verts(); vid++)
+                            //     trimesh.vert(vid).z() = (trimesh.vert(vid).x()-plane.meanX)*plane.meanA0+(trimesh.vert(vid).y()-plane.meanY)*plane.meanA1 + plane.meanZ;
+                        }
+                        else if (setMethodZ.getValue().compare("NEAR") == 0)
+                        {
+                            std::cout << "Interpolation method is adopted to set z for additional points" << std::endl;
+                            for(uint vid=uniq_data.size(); vid < trimesh.num_verts(); vid++)
+                            {
+                                std::vector<uint> adj_vert = trimesh.adj_v2v(vid);
+                                double mean, sum=0.0;
+                                int count=0;
+                                for(uint bv:adj_vert)
+                                {
+                                    if(trimesh.vert(bv).z() != 0.0)
+                                    {
+                                        sum+=trimesh.vert(bv).z();
+                                        count++;
+                                    }
+                                    //std::cout << sum << std::endl;
+                                }
+                                mean=sum/count;
+                                std::cout << mean << std::endl;
+                                trimesh.vert(vid).z() = mean;
+                            }
+                        }
+                        else
+                        {
+                            std::cout << "No valid interpolation method is set." << std::endl;
+                            exit(1);
+                        }
+                        std::cout << "Restore z for additional points ... COMPLETED." << std::endl;
+                        std::cout << std::endl;
+                    }
+
+                    remove_isolate_vertices(trimesh);
+
+                    paramSurface.boundary = "CONVEX HULL";
+
+                    std::cout << "\033[0;32mTriangulation with convex hull ... COMPLETED.\033[0m" << std::endl;
+                }
+
+                else if (concaveFlag.isSet())
+                {
+                    remove_duplicates_test_opt(data, uniq_data);
+
+                    // 1. Calcolo il convex hull (passando per la triangolazione dei punti) e lo trasformo in int da uint
+                    trimesh = points_triangulation(uniq_data, "c");
+                    std::vector<int> convexhull;
+                    std::vector<unsigned int> convex_uint = trimesh.get_ordered_boundary_vertices();
+                    for(int i: convex_uint)
+                        convexhull.push_back((short) i);
+
+                    std::vector<int> b_id;
+                    std::vector<Point3D> concavehull = computing_concavehull(uniq_data, convexhull, b_id);
+
+                    // 2. Removing points of concavehull (boundary) from datasets
+                    std::sort(b_id.begin(), b_id.end());
+                    std::vector<Point3D> unique_data;
+                    for(size_t i=0; i< uniq_data.size(); i++)
+                    {
+                        if (!check_index(b_id, i))
+                        {
+                            Point3D unique_p;
+                            unique_p.x = uniq_data.at(i).x;
+                            unique_p.y = uniq_data.at(i).y;
+                            unique_p.z = uniq_data.at(i).z;
+
+                            unique_data.push_back(unique_p);
+                        }
+                    }
+
+                    if(optFlag.isSet())
+                        paramSurface.opt = paramSurface.opt + optFlag.getValue();
+
+                    trimesh.clear();
+                    trimesh = concavehull_triangulation(concavehull, unique_data, paramSurface.opt);
+                    remove_isolate_vertices(trimesh);
+
+                    paramSurface.boundary = "CONCAVE HULL";
+
+                    std::cout << "\033[0;32mTriangulation with concave hull ... COMPLETED.\033[0m" << std::endl;
+                }
+
+                // External boundary from cmd
+                else if (setBoundary.isSet()) //se gli passo da linea di comando un bordo esterno: 1) leggi 2) triangola i punti vincolati al bordo
+                {
+                    remove_duplicates_test_opt(data, uniq_data);
+                    //uniq_data=data;
+                    std::cout << std::endl;
+
+                    std::vector<Point3D> boundary, uniq_boundary;
+                    load_xyzfile(setBoundary.getValue(), boundary);
+                    remove_duplicates_test_opt(boundary, uniq_boundary);
+
+                    applyRotation(uniq_boundary);
+
+                    paramSurface.opt = "";
+
+                    if(optFlag.isSet())
+                        paramSurface.opt = paramSurface.opt + optFlag.getValue();
+
+                    trimesh.clear();
+                    trimesh = constrained_triangulation2(uniq_boundary, uniq_data, paramSurface.opt);
+
+                }
+                else
+                {
+                    std::cerr << "ERROR: Required argument missing: --convex, --concave or --boundary -m <filename>." << std::endl;
+                    break;
+                }
+
+                Surface.setParameters(paramSurface);
+                Surface.setSummary(trimesh);
+
+                trimesh.save(out_mesh.c_str());
+            }
+            else if (gridFlag.isSet())
+            {
+                std::cerr << FRED("GRID FLAG IS NOT ACTIVE!!") << std::endl;
+                exit(1);
+            }
+
+            geometa.setMeshSummary(Surface);
+            geometa.setGeospatialData(Geometry);
+
+            geometa.write(out_surf + "/"+ Geometry.name + ".json");
+
+            break;
+        }
+        case LINESTRING:
+            break;
+        }
+    }
+
+
+    ///
+    /// Creating an offset of a surface
+    ///
+    if(setOffset.isSet())
+    {
+        if(!meshFiles.isSet())
+        {
+            std::cout << FRED("ERROR. Set mesh to extrude by -m or --mesh command.") << std::endl;
+            exit(1);
+        }
+
+        if(meshFiles.getValue().size() > 1)
+        {
+            std::cout << FRED("ERROR. Only one mesh is supported for the extrusion.") << std::endl;
+            exit(1);
+        }
+
+        if (!zOffset.isSet())
+        {
+            std::cerr << FRED("ERROR: Missing zOffset value. Use -z (or --zoffset) <value>.") << std::endl;
+            exit(1);
+        }
+
+        std::cout << FMAG("##########################################") << std::endl;
+        std::cout << FMAG("NOTA BENE: l'estrusione è solo abilitata in direzione z") << std::endl;
+        std::cout << FMAG("##########################################") << std::endl;
+        std::cout << std::endl;
+
+        std::vector<std::string> files = meshFiles.getValue();
+
+        MUSE::SurfaceMeta georef;
+        //georef.read(get_basename(files.at(0)) + ".json");
+        std::string json_path = filesystem::path(files.at(0)).replace_extension(".json").string();
+        georef.read(json_path);
+
+        MUSE::SurfaceMeta geometa;
+        geometa.setProject(Project);
+
+        std::vector<std::string> excommands;
+        excommands.push_back(command);
+        geometa.setCommands(excommands);
+
+        std::vector<std::string> deps;
+        deps.push_back(filesystem::relative(get_basename(files.at(0)) + ".json", Project.folder));
+        geometa.setDependencies(deps);
+
+        geometa.setDataSummary(georef.getDataSummary());
+        geometa.setDataRotation(georef.getDataRotation());
+
+
+
+        //cinolib::Trimesh<> trimesh;
+        cinolib::Polygonmesh <> mesh;
+        mesh.load(files.at(0).c_str());
+
+        std::cout << "\033[0;32mLoading mesh file: " << files.at(0) << " ... COMPLETED.\033[0m" << std::endl;
+        std::string basename = files.at(0).substr(files.at(0).find_last_of("/")+1, files.at(0).length());
+        basename = get_basename (basename);
+
+        std::string out_name = out_surf +"/" + basename;
+
+        MUSE::SurfaceMeta::Extrusion objinfo;
+        if(deltazExtrusion.isSet()) //estrusione con delta costante (z + delta)
+        {
+            objinfo.type = "delta";
+            std::cout << "The extrusion is set on delta ... " << std::endl;
+
+            if(zOffset.isSet())
+            {
+                std::cout << "The extrusion value is set on " << zOffset.getValue() << " in z direction ..." << std::endl;
+                objinfo.value = zOffset.getValue();
+                objinfo.direction = "z";
+
+                for(size_t vid =0 ; vid < mesh.num_verts(); vid++)
+                    mesh.vert(vid).z() = mesh.vert(vid).z() + zOffset.getValue();
+
+                //out_name = out_name + "dz" + std::to_string(zOffset.getValue());
+                out_name = out_name + "_d" + objinfo.direction;
+            }
+        }
+        else if(abszExtrusion.isSet()) //estrusione fino ad una quota assoluta fissata
+        {
+            objinfo.type = "absolute elevation";
+            std::cout << "The extrusion is set on absolute elevation ... " << std::endl;
+
+            if(zOffset.isSet())
+            {
+                std::cout << "The extrusion value is set on " << zOffset.getValue() << " in z direction ..." << std::endl;
+                objinfo.value = zOffset.getValue();
+                objinfo.direction = "z";
+
+                for(uint pid=0; pid < mesh.num_polys(); pid++)
+                {
+                    std::vector<cinolib::vec2d> vec2d;
+                    for(size_t i=0; i < mesh.poly_verts(pid).size(); i++)
+                    {
+                        cinolib::vec2d v;
+                        v.x() = mesh.poly_verts(pid).at(i).x();
+                        v.y() = mesh.poly_verts(pid).at(i).y();
+                        vec2d.push_back(v);
+                    }
+                    //std::cout << polygon_is_CCW(vec2d) << std::endl;
+                    //std::cout << polygon_signed_area(vec2d) << std::endl;
+                    // se l'area è positiva, quindi ccw = 1 (true) -> normale uscente
+                    if(cinolib::polygon_is_CCW(vec2d) == false)
+                        mesh.poly_flip_winding_order(pid);
+                }
+                //extr_trimesh = trimesh;
+                for(size_t vid =0 ; vid < mesh.num_verts(); vid++)
+                    mesh.vert(vid).z() = zOffset.getValue();
+
+                //out_name = out_name + "absz" + std::to_string(zOffset.getValue());
+                out_name = out_name + "_abs" + objinfo.direction;
+            }
+        }
+
+        else
+        {
+            std::cerr << "\033[0;31mERROR: Required argument missing: --delta or --abs for surface extrusion in z direction.\033[0m" << std::endl;
+            exit(1);
+        }
+
+        mesh.save((out_name + ext_surf).c_str());
+        std::cout << "\033[0;32mExport mesh file: " << out_name + ext_surf << " ... COMPLETED.\033[0m" << std::endl;
+
+
+        MUSE::Surface summary;
+        summary.setSummary(mesh);
+
+        geometa.setExtrusion(objinfo);
+        geometa.setMeshSummary(summary);
+
+        geometa.write(out_name + ".json");
+    }
+
+
+    ///
+    /// Closing two surface meshes (GEO3D approach)
+    ///
+    if(createTriObject.isSet() && meshFiles.getValue().size() == 2)
+    {
+        std::cout << FMAG("##########################################") << std::endl;
+        std::cout << FMAG("NOTA BENE: la chiusura delle mesh avviene per ora solo per mesh triangolari e in direzione z") << std::endl;
+        std::cout << FMAG("##########################################") << std::endl;
+        std::cout << std::endl;
+
+        std::vector<std::string> files = meshFiles.getValue();
+
+        cinolib::Trimesh<> trimesh0;
+        trimesh0.load(files.at(0).c_str());
+        std::cout << "\033[0;32mLoading mesh file: " << files.at(0) << " ... COMPLETED.\033[0m" << std::endl;
+        std::string filename0 = files.at(0).substr(files.at(0).find_last_of("/")+1, files.at(0).length());
+        std::string basename0 = get_basename(filename0);
+
+        cinolib::Trimesh<> trimesh1;
+        trimesh1.load(files.at(1).c_str());
+        std::cout << "\033[0;32mLoading mesh file: " << files.at(1) << " ... COMPLETED.\033[0m" << std::endl;
+        std::string filename1 = files.at(1).substr(files.at(1).find_last_of("/")+1, files.at(1).length());
+        std::string basename1 = get_basename(filename1);
+
+        std::cout << "bb1 completa: " << trimesh1.bbox()<< std::endl;
+        std::cout << "bb0 completa: " << trimesh0.bbox()<< std::endl;
+
+
+        //Creazione json del triobject
+        MUSE::SurfaceMeta geometa;
+        geometa.setProject(Project);
+
+        std::vector<std::string> excommands;
+        excommands.push_back(command);
+        geometa.setCommands(excommands);
+
+        std::vector<std::string> deps;
+        deps.push_back(filesystem::relative(get_basename(files.at(0)) + ".json", Project.folder));
+        deps.push_back(filesystem::relative(get_basename(files.at(1)) + ".json", Project.folder));
+
+        geometa.setDependencies(deps);
+
+
+        // 5) Creazione superficie laterale
+        // 5.1) Vector indici dei punti sul convex hull nelle rispettive mesh
+        std::vector<uint> or_idch0, or_idch1;
+        or_idch0 = trimesh0.get_ordered_boundary_vertices();
+        or_idch1 = trimesh1.get_ordered_boundary_vertices();
+
+        size_t n = 0; //n vertici uguali
+        for(unsigned int vid1 : or_idch1)
+        {
+            cinolib::vec2d vert2d_1 (trimesh1.vert(vid1).x(), trimesh1.vert(vid1).y());
+            for(unsigned int vid0 : or_idch0)
+            {
+                cinolib::vec2d vert2d_0 (trimesh0.vert(vid0).x(), trimesh0.vert(vid0).y());
+                if(vert2d_0.dist(vert2d_1) < 1e-2)
+                {
+                    n++;
+                    break;
+                }
+            }
+        }
+
+        std::cout << std::endl;
+        std::cout << or_idch0.size() << " boundary points of: " << basename0 << std::endl;
+        std::cout << or_idch1.size() << " boundary points of: " << basename1 << std::endl;
+        std::cout << n << " equal boundary points between " << basename0 << " and " << basename1 << std::endl;
+        std::cout << FGRN("Check on boundary ... COMPLETED.") << std::endl;
+        std::cout << std::endl;
+
+
+        // INTEGRAZIONE CODICE DI GEO3D -> VALIDA E FUNZIONANTE PER PUNTI TRIANGOLATI CON CONVEX HULL! DA ESTENDERE CON BOUNDARY/CONCAVE
+        // TO DO ...
+        if(n != or_idch0.size()) //CONDIZIONE SU BORDI UGUALE
+        {
+            std::cout << "\033[0;31mERROR: Meshes boundaries are different!\033[0m" << std::endl;
+
+            std::cout << FMAG("##########################################") << std::endl;
+            std::cout << FMAG("RIFERIMENTO: implementazione di GEO3D") << std::endl;
+            std::cout << FMAG("##########################################") << std::endl;
+            std::cout << std::endl;
+
+
+            // Criterio di scelta del bordo: area mesh
+            std::vector<double> polygon_area (2);
+            polygon_area.at(0) = trimesh0.mesh_area();
+            polygon_area.at(1) = trimesh1.mesh_area();
+
+            // Calcolo mesh con area minima
+            double min_area = DBL_MAX;
+            uint min_index = 0;
+            for(uint i=0; i<polygon_area.size(); i++)
+            {
+                if(polygon_area.at(i) < min_area)
+                {
+                    min_area = polygon_area.at(i);
+                    min_index = i;
+                }
+            }
+            std::cout << "Area minima: " << polygon_area.at(min_index) << std::endl;
+
+            cinolib::Trimesh<> tmp;
+            std::string basename_tmp;
+            if(min_index != 0)
+            {
+                tmp = trimesh0;
+                trimesh0 = trimesh1;
+                trimesh1 = tmp;
+
+                basename_tmp = basename0;
+                basename0 = basename1;
+                basename1 = basename_tmp;
+                //std::cout << "ORDINE MESH INVERTITO" << std::endl;
+            }
+            tmp.clear();
+
+            //estrazione ch di riferimento
+            std::vector<Point2D> ref_ch;
+            for(uint i : trimesh0.get_ordered_boundary_vertices())
+            {
+                Point2D p;
+                p.x = trimesh0.vert(i).x();
+                p.y = trimesh0.vert(i).y();
+                //p.z = trimesh0.vert(i).y();
+                ref_ch.push_back(p);
+            }
+
+            std::vector<cinolib::vec3d> verts2 = trimesh1.vector_verts();
+            std::vector<Point3D> sub_verts2;
+            for(unsigned int i=0; i< verts2.size(); i++)
+            {
+                Point2D p;
+                p.x = verts2.at(i).x();
+                p.y = verts2.at(i).y();
+
+                bool internal = point_in_polygon(p, ref_ch);
+                if(internal)
+                {
+                    Point3D p3d;
+                    p3d.x = verts2.at(i).x();
+                    p3d.y = verts2.at(i).y();
+                    p3d.z = verts2.at(i).z();
+
+                    sub_verts2.push_back(p3d);
+                }
+            }
+            std::cout << sub_verts2.size() << " vertices into " << basename0 << " mesh convex hull." << std::endl;
+
+            trimesh1.clear();
+            trimesh1 = points_triangulation(sub_verts2, "c");
+
+
+            std::vector<Point3D> ch1_tmp, ch2_tmp, ch;
+            for(uint i : trimesh0.get_ordered_boundary_vertices())
+            {
+                Point3D p;
+                p.x = trimesh0.vert(i).x();
+                p.y = trimesh0.vert(i).y();
+                p.z = trimesh0.vert(i).z();
+                ch1_tmp.push_back(p);
+            }
+
+            for(uint i : trimesh1.get_ordered_boundary_vertices())
+            {
+                Point3D p;
+                p.x = trimesh1.vert(i).x();
+                p.y = trimesh1.vert(i).y();
+                p.z = trimesh1.vert(i).z();
+                ch2_tmp.push_back(p);
+            }
+
+            ch = ch1_tmp;
+            ch.insert(ch.end(), ch2_tmp.begin(), ch2_tmp.end());
+
+
+            // ////////////////////////////////////////////////////////////////////////
+            // CH_0
+            // ////////////////////////////////////////////////////////////////////////
+
+            std::cout << "Interpolation for added points (related to unique convex hull of first level)" << std::endl;
+            std::cout << std::endl;
+
+            std::vector<Point3D> chf = ch;
+            std::vector<Point3D> new_points_chf;
+            for (unsigned int i=ch1_tmp.size(); i < chf.size(); i++)
+                new_points_chf.push_back(chf.at(i));
+
+            std::cout << new_points_chf.size() << " points to estimate z value for first level." << std::endl;
+            std::cout << std::endl;
+
+
+            std::vector<Point3D> verts_1, verts_2;
+            for(uint vid=0; vid < trimesh0.num_verts(); vid++)
+            {
+                Point3D p;
+                p.x = trimesh0.vert(vid).x();
+                p.y = trimesh0.vert(vid).y();
+                p.z = trimesh0.vert(vid).z();
+                verts_1.push_back(p);
+            }
+
+            fittedPlane planef = fitPlane(verts_1);
+
+            for(uint i=0; i<new_points_chf.size(); i++)
+                new_points_chf.at(i).z = (new_points_chf.at(i).x-planef.meanX)*planef.meanA0+(new_points_chf.at(i).y-planef.meanY)*planef.meanA1 + planef.meanZ;
+
+            uint ii=0;
+            for (uint i = ii+ch1_tmp.size(); i < chf.size(); i++)
+            {
+                chf.at(i).z = new_points_chf.at(ii).z;
+                ii++;
+            }
+
+            std::vector<Point3D> points_exf;
+            for(uint vid=0; vid<trimesh0.num_verts(); vid++)
+            {
+                if(!trimesh0.vert_is_boundary(vid))
+                {
+                    Point3D p;
+                    p.x = trimesh0.vert(vid).x();
+                    p.y = trimesh0.vert(vid).y();
+                    p.z = trimesh0.vert(vid).z();
+                    points_exf.push_back(p);
+                }
+            }
+            points_exf.insert(points_exf.end(), chf.begin(), chf.end());
+
+
+            // ////////////////////////////////////////////////////////////////////////
+            // CH_1
+            // ////////////////////////////////////////////////////////////////////////
+
+            std::cout << "Interpolation for added points (related to unique convex hull of second level)" << std::endl;
+            std::cout << std::endl;
+
+            std::vector<Point3D> chs = ch;
+            std::vector<Point3D> new_points_chs;
+            for (uint i=0; i < ch1_tmp.size(); i++)
+                new_points_chs.push_back(chs.at(i));
+
+            for (uint i=ch1_tmp.size()+ch2_tmp.size(); i < chs.size(); i++)
+                new_points_chs.push_back(chs.at(i));
+
+            std::cout << new_points_chs.size() << " points to estimate z value for second level." << std::endl;
+            std::cout << std::endl;
+
+            for(uint vid=0; vid < trimesh1.num_verts(); vid++)
+            {
+                Point3D p;
+                p.x = trimesh1.vert(vid).x();
+                p.y = trimesh1.vert(vid).y();
+                p.z = trimesh1.vert(vid).z();
+                verts_2.push_back(p);
+            }
+
+            fittedPlane planes = fitPlane(verts_2);
+            for(uint i=0; i<new_points_chs.size(); i++)
+                new_points_chs.at(i).z = (new_points_chs.at(i).x-planes.meanX)*planes.meanA0+(new_points_chs.at(i).y-planes.meanY)*planes.meanA1 + planes.meanZ;
+
+            for (uint i=0; i < ch1_tmp.size(); i++)
+                chs.at(i).z = new_points_chs.at(i).z;
+
+            uint jj = ch1_tmp.size();
+            for (uint i = jj +ch2_tmp.size(); i < chs.size(); i++)
+            {
+                chs.at(i).z = new_points_chs.at(jj).z;
+                jj++;
+            }
+
+
+            std::vector<Point3D> points_exs;
+            for(uint vid=0; vid<trimesh1.num_verts(); vid++)
+            {
+                if(!trimesh1.vert_is_boundary(vid))
+                {
+                    Point3D p;
+                    p.x = trimesh1.vert(vid).x();
+                    p.y = trimesh1.vert(vid).y();
+                    p.z = trimesh1.vert(vid).z();
+                    points_exs.push_back(p);
+                }
+            }
+            points_exs.insert(points_exs.end(), chs.begin(), chs.end());
+
+
+            trimesh0.clear();
+            trimesh1.clear();
+
+            trimesh0 = points_triangulation(points_exf, "c");
+            trimesh1 = points_triangulation(points_exs, "c");
+
+            //CHIUSURA MESH
+            or_idch0.clear();
+            or_idch1.clear();
+
+            //chiusura laterale mesh!
+            or_idch0 = trimesh0.get_ordered_boundary_vertices();
+            or_idch1 = trimesh1.get_ordered_boundary_vertices();
+
+            std::cerr << or_idch0.size() << " " << or_idch1.size() << std::endl;
+
+            trimesh0.update_bbox();
+            trimesh1.update_bbox();
+        }
+
+        or_idch0.clear();
+        or_idch1.clear();
+
+
+        // Check on normals
+        double offset = trimesh1.bbox().center().z() - trimesh0.bbox().center().z();
+        //        double offset = trimesh1.bbox().max.z() - trimesh0.bbox().min.z();
+        //        std::cout << "bb1: " << trimesh1.bbox().max.z()<< std::endl;
+        //        std::cout << "bb0: " << trimesh0.bbox().min.z()<< std::endl;
+
+
+        std::cout << "Offset in z direction: " << offset << std::endl;
+
+        if(offset > 0) //check for normals and updated (if necessary)
+        {
+            for(unsigned int pid=0; pid<trimesh0.num_polys(); pid++)
+                trimesh0.poly_flip_winding_order(pid);
+        }
+        else if(offset < 0)
+        {
+            for(unsigned int pid=0; pid<trimesh1.num_polys(); pid++)
+                trimesh1.poly_flip_winding_order(pid);
+        }
+        else
+        {
+            std::cerr << "ERROR: z offset cannot be equal to 0." << std::endl;
+            exit(1);
+        }
+        std::cout << FGRN("Check on normals ... COMPLETED.") << std::endl;
+        std::cout << std::endl;
+
+
+        cinolib::Trimesh<> closed_m;
+        double step = trimesh1.edge_avg_length();
+        if(step < trimesh0.edge_avg_length())
+            step = trimesh0.edge_avg_length();
+        std::cout << "Step to discretize lateral gap: " << step << std::endl;
+
+        std::cout << FMAG("##########################################") << std::endl;
+        std::cout << FMAG("Lo step di discretizzazione viene definito in base all'edge medio (minimo edge medio tra le due mesh)") << std::endl;
+        std::cout << FMAG("##########################################") << std::endl;
+
+        trimesh0.edge_mark_boundaries();
+        trimesh1.edge_mark_boundaries();
+
+        if(offset < 0)
+            closed_m = closing_2trimeshes(trimesh0, trimesh1, step);
+        else
+            closed_m = closing_2trimeshes(trimesh1, trimesh0, step);
+
+        if(!check_closing_mesh(closed_m))
+        {
+            std::cout << "\033[0;31mERROR on surfaces closing!\033[0m" << std::endl;
+            exit(1);
+        }
+
+        std::string out_closed_mesh = out_surf +"/" + basename0 +"-" + basename1 + ext_surf;
+        closed_m.save(out_closed_mesh.c_str());
+        std::cout << "\033[0;32mExport mesh file: " << out_closed_mesh << " ... COMPLETED.\033[0m" << std::endl;
+
+
+        MUSE::Surface summary;
+        summary.setSummary(closed_m);
+        geometa.setMeshSummary(summary);
+
+        geometa.write(out_surf + "/" + basename0 + "-" + basename1 + ".json");
     }
 
 
