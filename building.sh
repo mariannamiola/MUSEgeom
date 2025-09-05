@@ -3,7 +3,7 @@
 (
 set -e	#exit if an error occours
 
-#### Directiory (full path) where this scripts lies
+#### Directiory (full path) where this script lies
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
 
@@ -26,5 +26,14 @@ cmake .. -DCMAKE_INSTALL_PREFIX=${GDAL}/installed -DGDAL_BUILD_OPTIONAL_DRIVERS=
 cmake --build . --parallel 16
 cmake --install .
 
+
+### MUSE-geom APPLICATION
+cd ${SCRIPT_DIR}
+mkdir -p build
+cd build
+#cmake ..
+#make
+cmake --DCMAKE_BUILD_TYPE=Release ..
+cmake --build . --config Release
 
 )
