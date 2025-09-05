@@ -7,3 +7,6 @@
 [submodule "external/cereal"]
 	path = external/cereal
 	url = https://github.com/USCiLab/cereal.git
+[submodule "external/gdal"]
+	path = external/gdal
+	url = https://github.com/OSGeo/gdal.git
