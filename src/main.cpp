@@ -69,6 +69,8 @@
 #include "muselib/input/load_raster.h"
 #include "muselib/input/load_xyz.h"
 
+#include "muselib/interpolation/plane.h"
+
 #include "muselib/reference_system/coordinate_systems.h"
 
 //for filesystem
@@ -103,6 +105,7 @@ int main(int argc, char** argv)
 
     // Option 0. New project creation
     ValueArg<std::string> projectFolder ("p", "pdir", "Set project directory", false, "Directory", "path", cmd);
+    ValueArg<std::string> inputFolder   ("i", "indir", "Set input directory", false, "Directory", "path", cmd);
 
     // Option 0a. Project creation - optional: setting project EPSG
     ValueArg<std::string> setEPSG       ("", "setEPSG", "Set project EPSG. TO TEST.", false, "Unknown", "authority", cmd);
@@ -249,6 +252,7 @@ int main(int argc, char** argv)
     Project.setFolder(projectFolder.getValue()); //cartella di progetto
     Project.setName(Project.folder.substr(Project.folder.find_last_of("/")+1, Project.folder.length()));
 
+
     // 0) Commands
     std::string command;
 
@@ -281,12 +285,18 @@ int main(int argc, char** argv)
     std::cout << "=== Number of command arguments: " << argc << std::endl;
 
     // 0) Set folder (in/out)
-    std::string in_geometry = Project.folder + "/in";
+    std::string in_geometry = "";
+    if(!filesystem::exists(Project.folder + "/in"))
+        in_geometry = inputFolder.getValue();
+    else
+        in_geometry = Project.folder + "/in";
+
     std::string out_geometry = Project.folder + "/out";
-    std::string out_surf = out_geometry +"/surf";
-    std::string out_volume = out_geometry +"/volume";
+    if(!filesystem::exists(out_geometry))
+        filesystem::create_directory(out_geometry);
 
     std::cout << "=== Absolute path: " << abspath << std::endl;
+    std::cout << "=== Input folder: " << in_geometry << std::endl;
     std::cout << "=== Output folder: " << out_geometry << std::endl;
     std::cout << std::endl;
 
@@ -299,6 +309,10 @@ int main(int argc, char** argv)
     std::string ext_vol = ".mesh";
     if(vtkConversion.isSet() == true)
         ext_vol = ".vtk";
+
+
+    std::string out_surf = out_geometry +"/surf";
+    std::string out_volume = out_geometry +"/volume";
 
 
     ////////////////////////////////////////////////
@@ -1093,6 +1107,9 @@ int main(int argc, char** argv)
                         data.push_back(p);
                     }
                 }
+                MUSE::SurfaceMeta::DataSummary dataSummary;
+                dataSummary.setDataSummary(data);
+                geometa.setDataSummary(dataSummary);
                 std::cout << "=== Extract coordinates ... COMPLETED." << std::endl;
 
                 if(triFlag.isSet())
