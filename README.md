@@ -32,14 +32,20 @@ MUSE code has some mandatory dependences (included as a submodule in _${ROOT}/ex
 - to process polygonal/polyhedral meshes and offers geometric processing tools (cinolib, libigl, Triangle, Tetgen, fTetWild).
 
 ## Building
-To build EWoPe source code, use the following pipeline:
+To build TOOL source code, use the provided build script, which supports two options:
 
+### Build all (GDAL + PROJ + TOOL)
+This will compile the external dependencies (PROJ and GDAL), and then build the TOOL application:
 ```
 cd ${ROOT}
-mkdir build
-cd build
-cmake --DCMAKE_BUILD_TYPE=Release ..
-cmake --build . --config Release
+./build.sh
+```
+
+### Build only the TOOL (if dependencies are already built)
+Use this option if PROJ and GDAL have already been built and installed.
+```
+cd ${ROOT}
+./build.sh --only-tool
 ```
 
 Executables will be made available in _${ROOT}/bin_ folder.
