@@ -31,9 +31,12 @@
 #include <algorithm>
 #include <filesystem>
 #include <float.h>
-#include <set>
 
 #include <tclap/CmdLine.h>
+
+#include <cinolib/tetgen_wrap.h>
+#include <cinolib/voxelize.h>
+#include <cinolib/voxel_grid_to_hexmesh.h>
 
 #include <concaveman.h>
 // https://adared.ch/concaveman-cpp-a-very-fast-2d-concave-hull-maybe-even-faster-with-c-and-python/
@@ -107,7 +110,6 @@ int main(int argc, char** argv)
     ValueArg<std::string> projectFolder ("p", "pdir", "Set project directory", false, "Directory", "path", cmd);
     ValueArg<std::string> inputFolder   ("i", "indir", "Set input directory", false, "Directory", "path", cmd);
 
-    // Option 0a. Project creation - optional: setting project EPSG
     ValueArg<std::string> setEPSG       ("", "setEPSG", "Set project EPSG. TO TEST.", false, "Unknown", "authority", cmd);
 
 
@@ -240,7 +242,7 @@ int main(int argc, char** argv)
     ValueArg<std::string> setRefModel       ("", "refmod", "Geometry model", false, "name_geometry", "string", cmd);
 
     ValueArg<std::string> setOutFolder      ("", "outf", "Set folder to save outputs", false, "Directory", "string", cmd);
-
+    ValueArg<int> setPrecision              ("", "prec", "Set precision", false, 6, "int" , cmd);
 
     // Parse the argv array.
     cmd.parse(argc, argv);
@@ -1038,7 +1040,7 @@ int main(int argc, char** argv)
         excommands.push_back(command);
         geometa.setCommands(excommands);
 
-        std::string out_rast = out_geometry +"/rast";
+        std::string out_rast = out_geometry +"/surf";
         if(!filesystem::exists(out_rast))
             filesystem::create_directory(out_rast);
 
@@ -1051,9 +1053,9 @@ int main(int argc, char** argv)
         std::vector<std::string> dir_grid = get_directories(in_geometry);
         if(dir_grid.empty())
         {
-            std::cout << "=== Input ERROR: no directories found!" << std::endl;
+            //std::cout << "=== Input ERROR: no directories found!" << std::endl;
             dir_grid.push_back(in_geometry);
-            std::cout << dir_grid.at(0) << std::endl;
+            //std::cout << dir_grid.at(0) << std::endl;
         }
 
         MUSE::GeospatialData Geometry;
@@ -1079,7 +1081,7 @@ int main(int argc, char** argv)
                 load_rasterfile (list_grid.at(j), grid, XOrigin, YOrigin, nXSize, nYSize, XSizePixel, YSizePixel);
 
                 std::cout << "=== Columns number (nXSize): " << nXSize << ", Rows number (nYSize): " << nYSize << std::endl;
-                std::cout << std::fixed << std::setprecision(6) << "=== XOrigin: " << XOrigin << ", YOrigin: " << YOrigin << std::endl;
+                std::cout << std::fixed << std::setprecision(setPrecision.getValue()) << "=== XOrigin: " << XOrigin << ", YOrigin: " << YOrigin << std::endl;
                 std::cout << "=== Grid size: " << grid.size() << " x " << (grid.empty() ? 0 : grid[0].size()) << std::endl;
                 std::cout << "=== X Pixel size: " << XSizePixel << ", Y Pixel size: " << YSizePixel << std::endl;
                 std::cout << "\033[0;32m=== Import raster file: " << list_grid.at(j) << "... COMPLETED.\033[0m" << std::endl;
@@ -1090,8 +1092,6 @@ int main(int argc, char** argv)
 
                 if(setEPSG.isSet())
                     Geometry.setAuthority(setEPSG.getValue());
-
-                geometa.write(out_rast + "/" + Geometry.getName() + ".json");
 
                 std::vector<Point3D> data, uniq_data;
                 for(int row = 0; row < nYSize; row++)
@@ -1237,7 +1237,7 @@ int main(int argc, char** argv)
                     //MUSE::Quadmesh<> quadmesh(nYSize-1, nXSize-1, XSizePixel, YSizePixel, XOrigin, YOrigin);
                     MUSE::Quadmesh<> quadmesh(nYSize-1, nXSize-1, XSizePixel, YSizePixel, XOrigin, YOrigin, grid);
 
-                    std::string out_mesh = out_rast + "/grid_" + get_basename(Geometry.getName()) + ext_surf;
+                    std::string out_mesh = out_rast + "/" + get_basename(Geometry.getName()) + ext_surf;
                     quadmesh.save(out_mesh.c_str());
 
                     Surface.setParameters(paramSurface);
@@ -1249,8 +1249,8 @@ int main(int argc, char** argv)
                 geometa.setMeshSummary(Surface);
                 geometa.setGeospatialData(Geometry);
 
-                // CORREZIONE: Usa Geometry.getName() invece di Geometry.name
-                geometa.write(out_rast + "/" + Geometry.getName() + ".json");
+                geometa.write(out_rast + "/" + get_basename(Geometry.getName()) + ".json");
+                std::cout << "\033[0;32m=== Saved json: " << out_rast + "/" + get_basename(Geometry.getName()) + ".json" << "\033[0m" << std::endl;
             }
         }
     }
@@ -1703,7 +1703,7 @@ int main(int argc, char** argv)
         }
 
         std::cout << FMAG("##########################################") << std::endl;
-        std::cout << FMAG("NOTA BENE: l'estrusione è solo abilitata in direzione z") << std::endl;
+        std::cout << FMAG("WARNING: Only z-direction extrusion is enabled!") << std::endl;
         std::cout << FMAG("##########################################") << std::endl;
         std::cout << std::endl;
 
@@ -1728,27 +1728,24 @@ int main(int argc, char** argv)
         geometa.setDataSummary(georef.getDataSummary());
         geometa.setDataRotation(georef.getDataRotation());
 
-
-
-        //cinolib::Trimesh<> trimesh;
+        // Loading polygonmesh
         cinolib::Polygonmesh <> mesh;
         mesh.load(files.at(0).c_str());
 
-        std::cout << "\033[0;32mLoading mesh file: " << files.at(0) << " ... COMPLETED.\033[0m" << std::endl;
-        std::string basename = files.at(0).substr(files.at(0).find_last_of("/")+1, files.at(0).length());
-        basename = get_basename (basename);
+        std::cout << "\033[0;32m=== Loading mesh file: " << files.at(0) << " ... COMPLETED.\033[0m" << std::endl;
 
-        std::string out_name = out_surf +"/" + basename;
+        std::string basename = get_basename(get_filename(files.at(0)));
+        std::string out_name = get_basename(files.at(0)); //out_surf +"/" + basename;
 
         MUSE::SurfaceMeta::Extrusion objinfo;
         if(deltazExtrusion.isSet()) //estrusione con delta costante (z + delta)
         {
             objinfo.type = "delta";
-            std::cout << "The extrusion is set on delta ... " << std::endl;
+            std::cout << "=== The extrusion is set on delta ... " << std::endl;
 
             if(zOffset.isSet())
             {
-                std::cout << "The extrusion value is set on " << zOffset.getValue() << " in z direction ..." << std::endl;
+                std::cout << "=== The extrusion value is set on " << zOffset.getValue() << " in z direction ..." << std::endl;
                 objinfo.value = zOffset.getValue();
                 objinfo.direction = "z";
 
@@ -1762,11 +1759,11 @@ int main(int argc, char** argv)
         else if(abszExtrusion.isSet()) //estrusione fino ad una quota assoluta fissata
         {
             objinfo.type = "absolute elevation";
-            std::cout << "The extrusion is set on absolute elevation ... " << std::endl;
+            std::cout << "=== The extrusion is set on absolute elevation ... " << std::endl;
 
             if(zOffset.isSet())
             {
-                std::cout << "The extrusion value is set on " << zOffset.getValue() << " in z direction ..." << std::endl;
+                std::cout << "=== The extrusion value is set on " << zOffset.getValue() << " in z direction ..." << std::endl;
                 objinfo.value = zOffset.getValue();
                 objinfo.direction = "z";
 
@@ -1794,7 +1791,6 @@ int main(int argc, char** argv)
                 out_name = out_name + "_abs" + objinfo.direction;
             }
         }
-
         else
         {
             std::cerr << "\033[0;31mERROR: Required argument missing: --delta or --abs for surface extrusion in z direction.\033[0m" << std::endl;
@@ -1816,7 +1812,7 @@ int main(int argc, char** argv)
 
 
     ///
-    /// Closing two surface meshes (GEO3D approach)
+    /// Closing two (triangular) surface meshes (GEO3D approach)
     ///
     if(createTriObject.isSet() && meshFiles.getValue().size() == 2)
     {
@@ -2189,6 +2185,371 @@ int main(int argc, char** argv)
         geometa.write(out_surf + "/" + basename0 + "-" + basename1 + ".json");
     }
 
+    if(createTriObject.isSet()  && meshFiles.getValue().size() > 2)
+        std::cerr << "ERROR: Unexpected number of input files!" << std::endl;
+
+
+    //ESTENSIONE APPLICATIVO PER GENERARE MESH TETRAEDRICHE CON ALTRI TIPI DI MESH!! IN BASE ALLA FLAG CHE GLI PASSO: --tet, --hex, --vox
+    if(createVolObject.isSet() && meshFiles.getValue().size() == 1)
+    {
+        // 0) Creazione cartella per il salvataggio delle mesh volumetriche
+        if(!filesystem::exists(out_volume))
+            filesystem::create_directory(out_volume);
+
+        // 1) Passaggio meshfile
+        std::vector<std::string> files = meshFiles.getValue();
+
+        MUSE::VolumeMeta geometa;
+        geometa.setProject(Project);
+
+        std::vector<std::string> excommands;
+        excommands.push_back(command);
+        geometa.setCommands(excommands);
+
+        std::vector<std::string> deps;
+        deps.push_back(filesystem::relative(get_basename(files.at(0)) + ".json", Project.folder));
+        geometa.setDependencies(deps);
+
+
+        MUSE::Volume summary;
+
+        std::cout << "\033[0;32m=== Loading mesh file: " << files.at(0) << " ... COMPLETED.\033[0m" << std::endl;
+        std::string basename = get_basename(get_filename(files.at(0)));
+        std::string out_mesh = out_volume +"/" + basename + ext_vol;
+
+        int flagCount = tetFlag.isSet() + voxFlag.isSet() + hexFlag.isSet();
+        if (flagCount > 1)
+        {
+            std::cerr << "=== ERROR: Only one of tetFlag, voxFlag, or hexFlag can be set at a time." << std::endl;
+            exit(1);
+        }
+
+        // Se è settato il flag per i tetraedri ...
+        if(tetFlag.isSet())
+        {
+            std::cout << "=== tetFlag is set ... " << std::endl;
+
+            //se voglio i tet ...
+            cinolib::Trimesh<> trimesh;
+            trimesh.load(files.at(0).c_str());
+
+
+            // Ratio rappresenta un indice di anisotropia geometrica della mesh:
+            // confronta l’estensione massima nel piano orizzontale (XY) rispetto a quella verticale (Z)
+            double delta_max = trimesh.bbox().delta_x();
+            if(trimesh.bbox().delta_y() >= delta_max)
+                delta_max = trimesh.bbox().delta_y();
+
+            std::cout << "max{delta_x,delta_y} = " << delta_max << std::endl;
+            std::cout << "delta_z = " << trimesh.bbox().delta_z() << std::endl;
+
+            if(trimesh.bbox().delta_z() == 0.0)
+            {
+                std::cerr << "=== ERROR: delta_z is zero, cannot compute ratio max{delta_x,delta_y}/delta_z." << std::endl;
+                exit(1);
+            }
+            double ratio = delta_max/trimesh.bbox().delta_z();
+            std::cout << "=== Computing anisotropy ratio between max{delta_x,delta_y}/delta_z: " << ratio << std::endl;
+
+
+            //AGGIUNGERE LA CONDIZIONE PER LA TRASLAZIONE
+            cinolib::vec3d center = trimesh.bbox().center();
+            std::cout << "=== Translate mesh at BBOX center: " << center << std::endl;
+            std::cout << std::endl;
+            trimesh.translate(-center);
+            if(setSave.isSet())
+                trimesh.save((get_basename(files.at(0)) + "_translate"+ext_surf).c_str());
+
+            // Set parameters in opt
+            std::string opt = "";
+            if(optFlag.isSet())
+                opt = opt + optFlag.getValue();
+
+            // Run tetrahedralization by exploting Tetgen Library in Cinolib and create a tetrahedralization mesh (m_tet)
+            cinolib::Tetmesh<> volmesh;
+            cinolib::tetgen_wrap(trimesh.vector_verts(), trimesh.vector_polys(), trimesh.vector_edges(), opt, volmesh);
+
+            volmesh.translate(center);
+            std::cout << "### Restore coordinates mesh from BBOX center: " << center << " COMPLETED." <<std::endl;
+
+            std::cout << std::endl;
+            std::cout << "#############################################" << std::endl;
+            std::cout << "### Statistics on volume ... " << std::endl;
+            std::cout << "### Poly average volume: " << volmesh.mesh_volume()/volmesh.num_polys() << std::endl;
+            std::cout << "### Edge average length: " << volmesh.edge_avg_length() << std::endl;
+            std::cout << "### Edge max length: " << volmesh.edge_max_length() << std::endl;
+            std::cout << "### Edge min length: " << volmesh.edge_min_length() << std::endl;
+
+            if(volmesh.edge_max_length() > volmesh.edge_avg_length() * 1.5)
+                std::cout << FYEL("### WARNING: (max) edge length major than 1.5 times edge average length ...") << std::endl;
+
+            std::cout << "#############################################" << std::endl;
+            std::cout << std::endl;
+
+            volmesh.save(out_mesh.c_str());
+            std::cout << "\033[0;32mExport mesh file: " << out_mesh << " ... COMPLETED.\033[0m" << std::endl;
+
+            summary.setSummary(volmesh);
+        }
+
+
+        if(voxFlag.isSet())
+        {
+            std::cout << "voxFlag is set ... " << std::endl;
+
+            //MUSE::Quadmesh<> quadmesh;
+            cinolib::Polygonmesh<> quadmesh;
+            quadmesh.load(files.at(0).c_str());
+
+            uint max_voxels_per_side = setMaxVoxelperSide.getValue();
+            cinolib::VoxelGrid grid;
+            cinolib::voxelize(quadmesh, max_voxels_per_side, grid);
+
+            std::cout << "Grid dimensions: " << grid.dim[0] << " x " << grid.dim[1] << " x " << grid.dim[2] << std::endl;
+
+            cinolib::Hexmesh<> volmesh;
+            voxel_grid_to_hexmesh(grid, volmesh, cinolib::VOXEL_INSIDE);
+
+            volmesh.save(out_mesh.c_str());
+            std::cout << "\033[0;32mExport mesh file: " << out_mesh << " ... COMPLETED.\033[0m" << std::endl;
+
+            summary.setSummary(volmesh);
+        }
+
+
+        if(hexFlag.isSet())
+        {
+            std::cout << "hexFlag is set ... " << std::endl;
+
+            //cinolib::Quadmesh<> quadmesh;
+            cinolib::Trimesh<> mesh;
+            mesh.load(files.at(0).c_str());
+
+            MUSE::Hexmesh<> hexmesh(setResx.getValue(), setResy.getValue(), setResz.getValue(), mesh);
+
+            hexmesh.save(out_mesh.c_str());
+            std::cout << "\033[0;32mExport mesh file: " << out_mesh << " ... COMPLETED.\033[0m" << std::endl;
+
+            summary.setSummary(hexmesh);
+        }
+
+        geometa.setMeshSummary(summary);
+        geometa.write(out_volume +"/" + basename + ".json");
+    }
+
+    if(createVolObject.isSet()  && meshFiles.getValue().size() > 1)
+        std::cerr << "ERROR: Unexpected number of input files!" << std::endl;
+
+
+
+    ///
+    /// Loading and editing surface
+    ///
+    /// Questo comando permette la lettura di superfici di origine esterna e la creazione del file json corrispondente
+    /// Questo comando ha anche la possibilità di effettuare infittimento mediante split su centroide o punto medio edge
+    /// Può prendere in input più superfici (-m <filename> -m filename ...)
+    ///
+    if(loadSurface.isSet() && !setRemeshing.isSet())
+    {
+        if(!meshFiles.isSet())
+        {
+            std::cout << FRED("ERROR. Set a surface mesh by -m command") << std::endl;
+            exit(1);
+        }
+
+        if(meshFiles.getValue().size() >= 2)
+        {
+            std::cout << FRED("ERROR. Only a surface mesh file is supported.") << std::endl;
+            exit(1);
+        }
+
+        std::string filename_mesh = meshFiles.getValue().at(0);
+
+        MUSE::SurfaceMeta geometa;
+        geometa.setProject(Project);
+
+        std::vector<std::string> excommands;
+        excommands.push_back(command);
+        geometa.setCommands(excommands);
+
+        if(splitMethod.isSet())
+        {
+            std::vector<std::string> deps;
+            deps.push_back(filesystem::relative(get_basename(filename_mesh) + ".json", Project.folder));
+            geometa.setDependencies(deps);
+        }
+
+        MUSE::SurfaceMesh<>mesh;
+        mesh.load(filename_mesh.c_str());
+        std::cout << "\033[0;32m=== Loading mesh file: " << filename_mesh << " ... COMPLETED.\033[0m" << std::endl;
+
+        MeshType type = mesh.set_meshtype();
+        std::cout << "=== Check mesh type ... " << std::endl;
+        std::cout << "=== Number of verts per poly: " << mesh.verts_per_poly(0) <<  std::endl;
+
+        MUSE::Surface surf;
+        MUSE::Surface::Parameters surf_par;
+
+        if(setRotAxis.isSet())
+        {
+            double rad = (setRotAngle.getValue() * M_PI)/180;
+            cinolib::vec3d axis = set_rotation_axis(setRotAxis.getValue());
+
+            cinolib::mat3d R = cinolib::mat3d::ROT_3D(axis, rad);
+            cinolib::vec3d rotcenter {setRotCenterX.getValue(), setRotCenterY.getValue(), setRotCenterZ.getValue()};
+
+            for(uint vid=0; vid<mesh.num_verts(); vid++)
+            {
+                mesh.vert(vid) -= rotcenter;
+                mesh.vert(vid) = R*mesh.vert(vid);
+                mesh.vert(vid) += rotcenter;
+            }
+        }
+
+        if(type == MeshType::TRIMESH)
+        {
+            std::cout << "=== Mesh type: TRIMESH" <<  std::endl;
+            std::cout << std::endl;
+
+            surf_par.type = "TRIMESH";
+
+            if(splitMethod.isSet())
+            {
+                if(splitMethod.getValue().compare("CENTROID") == 0)
+                {
+                    std::cout << "=== Management of new degree of resolution by poly split at centroid ..." << std::endl;
+                    mesh.triangles_split_on_centroid();
+                }
+                else if(splitMethod.getValue().compare("EDGE") == 0)
+                {
+                    std::cout << "=== Management of new degree of resolution by poly split at edges middle point ..." << std::endl;
+                    mesh.triangles_split_on_edge();
+                }
+                else if(splitMethod.getValue().compare("BEDGE") == 0)
+                {
+                    std::cout << "=== Management of new degree of resolution by poly split at edges middle point ..." << std::endl;
+                    double inedge_avg = 0.0;
+                    int n_inedge = 0;
+                    for(uint eid=0; eid < mesh.num_edges(); eid++)
+                    {
+                        if(!mesh.edge_is_boundary(eid))
+                        {
+                            n_inedge++;
+                            inedge_avg += mesh.edge_length(eid);
+                        }
+                    }
+                    inedge_avg = inedge_avg/n_inedge;
+                    std::cout << "=== (Internal) edge average lenght: " << inedge_avg << std::endl;
+                    std::cout << "=== Edge average lenght: " << mesh.edge_avg_length() << std::endl;
+
+                    for(uint eid=0; eid < mesh.num_edges(); eid++)
+                    {
+                        if(mesh.edge_is_boundary(eid))
+                        {
+                            if(mesh.edge_length(eid) > inedge_avg)
+                            {
+                                std::cout << "=== Edge ID: " << eid << " - Edge lenght: " << mesh.edge_length(eid) << std::endl;
+                                for(int iter=0; iter < setIterations.getValue(); iter++)
+                                {
+                                    std::cout << "=== Start split edge ... iteration: " << iter << std::endl;
+
+                                    std::vector<uint> pid_eid = mesh.adj_e2p(eid);
+                                    if(pid_eid.size() > 1)
+                                    {
+                                        std::cout << FRED("WARNING: Edge with multiple adjacent polygons. Skipping.") << std::endl;
+                                        continue;
+                                    }
+
+                                    std::cout << "=== pid adj edge: " << pid_eid.size() << std::endl;
+
+                                    cinolib::vec3d v0 = mesh.edge_vert(eid, 0);
+                                    cinolib::vec3d v1 = mesh.edge_vert(eid, 1);
+                                    cinolib::vec3d delta = (v1-v0)/2;
+
+                                    cinolib::vec3d v_med (v0.x()+delta.x(), v0.y()+delta.y(), v0.z()+delta.z());
+                                    mesh.vert_add(v_med);
+                                }
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    std::cout << FRED("ERROR. Split method: ") << splitMethod.getValue()  << FRED(" is not supported.") << std::endl;
+                    exit(1);
+                }
+            }
+
+            if(boundaryExtract.isSet())
+            {
+                std::vector<Point3D> vec_bv;
+                for(uint i:mesh.get_ordered_boundary_vertices())
+                {
+                    Point3D bv;
+                    bv.x = mesh.vert(i).x();
+                    bv.y = mesh.vert(i).y();
+                    bv.z = mesh.vert(i).z();
+                    vec_bv.push_back(bv);
+                }
+                export3d_xyz(out_surf + "/"+ get_basename(get_filename(filename_mesh)) + "_BP.xyz", vec_bv);
+            }
+        }
+        else if(type == MeshType::QUADMESH)
+        {
+            std::cout << "Mesh type: QUADMESH" <<  std::endl;
+            std::cout << std::endl;
+
+            surf_par.type = "QUADMESH";
+
+            if(splitMethod.isSet())
+            {
+                std::cout << "### For quads mesh: poly split on edge/centroid corresponds." << std::endl;
+                if(splitMethod.getValue().compare("EDGE") == 0 || splitMethod.getValue().compare("CENTROID") == 0)
+                {
+                    std::cout << "Management of new degree of resolution by poly split ..." << std::endl;
+                    mesh.quads_split_on_edge();
+                }
+                else
+                {
+                    std::cout << FRED("ERROR. Split method: ") << splitMethod.getValue()  << FRED(" is not supported.") << std::endl;
+                    exit(1);
+                }
+            }
+        }
+        else
+        {
+            std::cout << FRED("ERROR. Only triangle/quadrilateral meshes are supported!") << std::endl;
+            exit(1);
+        }
+
+        surf.setParameters(surf_par);
+        surf.setSummary(mesh);
+        geometa.setMeshSummary(surf);
+
+        std::string suffix;
+        if(splitMethod.isSet()) suffix += "_res";
+        if(setRotAxis.isSet()) suffix += "_rot";
+        if(setScaleMesh.isSet())
+        {
+            mesh.scale(setScaleFactorX, setScaleFactorY, setScaleFactorZ);
+            suffix += "_scale";
+        }
+
+        //std::string out_mesh = get_filename(filename_mesh);
+        std::string final_out = get_filename(filename_mesh) + suffix + ext_surf;
+        mesh.save(final_out.c_str());
+        std::cout << "\033[0;32mSaving mesh file: " << final_out << "\033[0m" << std::endl;
+
+
+        std::cout << "=================== INFO bbox vertices ===================" << std::endl;
+        std::cout << "=== bbox x_min, y_min: " << std::fixed << std::setprecision(setPrecision.getValue()) << mesh.bbox().min.x() << "; " << mesh.bbox().min.y() <<  std::endl;
+        std::cout << "=== bbox x_max, y_min: " << std::fixed << std::setprecision(setPrecision.getValue()) << mesh.bbox().max.x() << "; " << mesh.bbox().min.y() <<  std::endl;
+        std::cout << "=== bbox x_max, y_max: " << std::fixed << std::setprecision(setPrecision.getValue()) << mesh.bbox().max.x() << "; " << mesh.bbox().max.y() <<  std::endl;
+        std::cout << "=== bbox x_min, y_max: " << std::fixed << std::setprecision(setPrecision.getValue()) << mesh.bbox().min.x() << "; " << mesh.bbox().max.y() <<  std::endl;
+        std::cout << "=== bbox diag: " << std::fixed << std::setprecision(setPrecision.getValue()) << mesh.bbox().diag() << std::endl;
+
+        geometa.write(get_filename(filename_mesh) + suffix + ".json");
+    }
 
     } catch (ArgException &e)  // catch exceptions
     { std::cerr << "error: " << e.error() << " for arg " << e.argId() << std::endl; }

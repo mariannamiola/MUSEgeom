@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e	#exit if an error occours
+
 export EXE=MUSEgeom
 export PROJECT_NAME=02_MontePisano
 
@@ -23,10 +25,11 @@ export WP=${WORK_DIR}/${PROJECT_NAME}
 
 
 # 1. Set input data
-export INPUT=dtm_MontePisano.asc
+export INPUT=dtm_MontePisano
+export FORMAT=asc
 export INWP=${WP}/in
 mkdir -p ${INWP}
-cp ${DATA_SOURCE}/${INPUT} ${INWP}/${INPUT} 
+cp ${DATA_SOURCE}/${INPUT}.${FORMAT} ${INWP}/${INPUT}.${FORMAT}
 
 #######################################################################
 
@@ -39,8 +42,8 @@ export RESY=100
 export RESZ=0
 
 
-(
-set -e	#exit if an error occours
+
+
 
 # 3. Starting script ...
 ########## REPORT  ###########
@@ -52,8 +55,17 @@ echo "
     			[ project directory ] ${WP}
     			
                		"
-#export OUTSURF=${WP}/out/geometry/surf
-#export OUTVOL=${WP}/out/geometry/volume
+export OUTSURF=${WP}/out/surf
 
-${EXE} -R -p ${WP} --grid --obj
-)
+##Reading raster file and surface modeling
+${EXE} -R -p ${WP} --tri --obj --convex
+
+##Surface offset
+${EXE} -O -p ${WP} -m ${OUTSURF}/${INPUT}.obj --delta -z 1000 --obj
+
+##Lateral closure of the two surfaces
+${EXE} -T -p ${WP} -m ${OUTSURF}/${INPUT}.obj -m ${OUTSURF}/${INPUT}_dz.obj --obj
+
+##Tetrahedral meshing
+${EXE} -M -p ${WP} -m ${OUTSURF}/${INPUT}-${INPUT}_dz.obj --vtk --tet
+${EXE} -M -p ${WP} -m ${OUTSURF}/${INPUT}-${INPUT}_dz.obj --vtk --hex --resx 100 --resy 100 --resz 100
