@@ -63,7 +63,7 @@ ${EXE} -V -p ${WP} --save --xyz
 mv ${OUTSURF}/${BOUNDARY}_0@${FORMAT0}.xyz ${OUTSURF}/${BOUNDARY}.xyz
 
 ##Reading batimetry as point cloud
-${EXE} -P -p ${WP} --points ${INWP}/${BATIM}.${FORMAT1} --boundary ${OUTSURF}/${BOUNDARY}.xyz --tri --obj
+${EXE} -P -p ${WP} --points ${INWP}/${BATIM}.${FORMAT1} --axis Z --thresh 0.0 --tri --concave --obj ###--boundary ${OUTSURF}/${BOUNDARY}.xyz --tri --obj
 
 ##Surface offset
 #${EXE} -O -p ${WP} -m ${OUTSURF}/${INPUT}.obj --delta -z ${HALF_RESZ} --obj

@@ -134,6 +134,8 @@ int main(int argc, char** argv)
     MultiArg<std::string> setBBPoints   ("", "bbp", "Set bounding box points", false, "string", cmd );
 
 
+    ValueArg<std::string> setAxis       ("", "axis", "Set rotation axis", false, "NO", "rot_axis", cmd);
+
     ValueArg<std::string> setRotAxis    ("", "rotaxis", "Set rotation axis", false, "NO", "rot_axis", cmd);
     ValueArg<double> setRotAngle        ("", "rotangle", "Set clockwise rotation angle (in degree)", false, 0.0, "double", cmd);
     ValueArg<double> setRotCenterX      ("", "rotcx", "Set coordinte X of rotation center", false, 0.0, "double", cmd);
@@ -222,10 +224,10 @@ int main(int argc, char** argv)
     // ADDITIONAL FUNCTIONALITIES:
 
     // Option 7. Merge two meshes
-    SwitchArg mergeMeshes               ("U", "merge", "Merge two trimesh", cmd, false); //booleano
-    ValueArg<int> proxThreshold         ("", "proxthresh", "Set proximaty threshold", false, 0, "int" , cmd);
+    SwitchArg mergeMeshes                   ("U", "merge", "Merge two trimesh", cmd, false); //booleano
+    ValueArg<double> proxThreshold          ("", "thresh", "Set proximaty threshold", false, 0.0, "int" , cmd);
 
-    SwitchArg extractMeshes             ("S", "split", "Split two trimesh", cmd, false); //booleano
+    SwitchArg extractMeshes                 ("S", "split", "Split two trimesh", cmd, false); //booleano
 
 
     SwitchArg createScalarField             ("F", "cscalar", "Create scalar field from centroids configuration and real samples", cmd, false); //booleano
@@ -677,8 +679,10 @@ int main(int argc, char** argv)
                                     trimesh = points_triangulation(data, "c");
                                     std::vector<int> convexhull;
                                     std::vector<unsigned int> convex_uint = trimesh.get_ordered_boundary_vertices();
-                                    for(int i: convex_uint)
-                                        convexhull.push_back((short) i);
+                                    // for(int i: convex_uint)
+                                    //     convexhull.push_back((short) i);
+                                    for (unsigned int i : convex_uint)
+                                        convexhull.push_back(static_cast<int>(i));
 
                                     std::vector<int> b_id;
                                     std::vector<Point3D> concavehull = computing_concavehull(data, convexhull, b_id);
@@ -780,9 +784,9 @@ int main(int argc, char** argv)
             // Export
             if(setSaveAttributesTable.isSet())
             {
-                auto csv_path = out_surf + "/" + get_basename(get_filename(file)) + ".csv";
+                auto csv_path = out_surf + "/" + get_basename(get_filename(file)) + ext_txt;
                 if(export_attributes_to_csv(file, csv_path) == IOSUCCESS) {
-                    Geometry.setAttributeTable(get_basename(get_filename(file)) + ".csv");
+                    Geometry.setAttributeTable(get_basename(get_filename(file)) + ext_txt);
                 }
             }
 
@@ -959,8 +963,10 @@ int main(int argc, char** argv)
                             trimesh = points_triangulation(data, "c");
                             std::vector<int> convexhull;
                             std::vector<unsigned int> convex_uint = trimesh.get_ordered_boundary_vertices();
-                            for(int i: convex_uint)
-                                convexhull.push_back((short) i);
+                            // for(int i: convex_uint)
+                            //     convexhull.push_back((short) i);
+                            for (unsigned int i : convex_uint)
+                                convexhull.push_back(static_cast<int>(i));
 
                             std::vector<int> b_id;
                             std::vector<Point3D> concavehull = computing_concavehull(data, convexhull, b_id);
@@ -1164,8 +1170,10 @@ int main(int argc, char** argv)
                         trimesh = points_triangulation(data, "c");
                         std::vector<int> convexhull;
                         std::vector<unsigned int> convex_uint = trimesh.get_ordered_boundary_vertices();
-                        for(unsigned int idx : convex_uint)
-                            convexhull.push_back((int)idx);
+                        // for(unsigned int idx : convex_uint)
+                        //     convexhull.push_back((int)idx);
+                        for (unsigned int i : convex_uint)
+                            convexhull.push_back(static_cast<int>(i));
 
                         std::vector<int> b_id;
                         std::vector<Point3D> concavehull = computing_concavehull(data, convexhull, b_id);
@@ -1501,6 +1509,22 @@ int main(int argc, char** argv)
             applyRotation(data);
             geometa.setDataRotation(dataRotation);
 
+            remove_duplicates_test_opt(data, uniq_data);
+
+            if(proxThreshold.isSet() && setAxis.isSet())
+            {
+                std::cout << "=== Filter on " << setAxis.getValue() << " values is set. Threshold = " << proxThreshold.getValue() << std::endl;
+                std::cout << "=== Intial data dimension: " << uniq_data.size() << std::endl;
+                std::vector<Point3D> data_to_filter = uniq_data;
+                uniq_data.clear();
+                for(size_t i=0; i<data_to_filter.size(); i++)
+                {
+                    if(setAxis.getValue() == "Z" && data_to_filter.at(i).z <= proxThreshold.getValue())
+                        uniq_data.push_back(data_to_filter.at(i));
+                }
+                std::cout << "=== Filtered data dimension: " << uniq_data.size() << std::endl;
+            }
+
             if(subSet.isSet())
             {
                 srand(time(NULL));
@@ -1539,7 +1563,7 @@ int main(int argc, char** argv)
                 //Convex hull
                 if (convexFlag.isSet())
                 {
-                    remove_duplicates_test_opt(data, uniq_data);
+                    //remove_duplicates_test_opt(data, uniq_data);
 
                     paramSurface.opt = "c";
 
@@ -1606,14 +1630,16 @@ int main(int argc, char** argv)
 
                 else if (concaveFlag.isSet())
                 {
-                    remove_duplicates_test_opt(data, uniq_data);
+                    //remove_duplicates_test_opt(data, uniq_data);
 
                     // 1. Calcolo il convex hull (passando per la triangolazione dei punti) e lo trasformo in int da uint
                     trimesh = points_triangulation(uniq_data, "c");
                     std::vector<int> convexhull;
                     std::vector<unsigned int> convex_uint = trimesh.get_ordered_boundary_vertices();
-                    for(int i: convex_uint)
-                        convexhull.push_back((short) i);
+                    // for(int i: convex_uint)
+                    //     convexhull.push_back((short) i);
+                    for (unsigned int i : convex_uint)
+                        convexhull.push_back(static_cast<int>(i));
 
                     std::vector<int> b_id;
                     std::vector<Point3D> concavehull = computing_concavehull(uniq_data, convexhull, b_id);
@@ -1649,7 +1675,7 @@ int main(int argc, char** argv)
                 // External boundary from cmd
                 else if (setBoundary.isSet()) //se gli passo da linea di comando un bordo esterno: 1) leggi 2) triangola i punti vincolati al bordo
                 {
-                    remove_duplicates_test_opt(data, uniq_data);
+                    //remove_duplicates_test_opt(data, uniq_data);
                     //uniq_data=data;
                     std::cout << std::endl;
 
@@ -2362,7 +2388,7 @@ int main(int argc, char** argv)
 
 
     ///
-    /// Loading and editing surface
+    /// Loading and editing surface mesh
     ///
     /// Questo comando permette la lettura di superfici di origine esterna e la creazione del file json corrispondente
     /// Questo comando ha anche la possibilità di effettuare infittimento mediante split su centroide o punto medio edge
@@ -2510,7 +2536,7 @@ int main(int argc, char** argv)
                     bv.z = mesh.vert(i).z();
                     vec_bv.push_back(bv);
                 }
-                export3d_xyz(out_surf + "/"+ get_basename(get_filename(filename_mesh)) + "_BP.xyz", vec_bv);
+                export3d_xyz(out_surf + "/"+ get_basename(get_filename(filename_mesh)) + "_BP" + ext_txt, vec_bv);
             }
         }
         else if(type == MeshType::QUADMESH)
@@ -2568,6 +2594,291 @@ int main(int argc, char** argv)
         std::cout << "=== bbox diag: " << std::fixed << std::setprecision(setPrecision.getValue()) << mesh.bbox().diag() << std::endl;
 
         geometa.write(get_filename(filename_mesh) + suffix + ".json");
+    }
+
+
+    ///
+    /// Loading and editing volume mesh
+    ///
+    if(createVolObject.isSet() && meshFiles.getValue().size() == 1)
+    {
+        // 0) Creazione cartella per il salvataggio delle mesh volumetriche
+        if(!filesystem::exists(out_volume))
+            filesystem::create_directory(out_volume);
+
+
+        // 1) Passaggio meshfile
+        std::vector<std::string> files = meshFiles.getValue();
+        //std::string filename_mesh = files.at(0);
+
+        MUSE::VolumeMeta geometa;
+        geometa.setProject(Project);
+
+        std::vector<std::string> excommands;
+        excommands.push_back(command);
+        geometa.setCommands(excommands);
+
+        std::vector<std::string> deps;
+        deps.push_back(filesystem::relative(get_basename(files.at(0)) + ".json", Project.folder));
+        geometa.setDependencies(deps);
+
+
+        MUSE::Volume summary;
+
+        std::cout << "\033[0;32mLoading mesh file: " << files.at(0) << " ... COMPLETED.\033[0m" << std::endl;
+        std::string basename = files.at(0).substr(files.at(0).find_last_of("/")+1, files.at(0).length());
+        basename = get_basename(basename);
+
+        std::string out_mesh = out_volume +"/" + basename + ext_vol;
+
+        // Se è settato il flag per i tetraedri ...
+        if(tetFlag.isSet())
+        {
+            std::cout << "### tetFlag is set ... " << std::endl;
+
+            //se voglio i tet ...
+            cinolib::Trimesh<> trimesh;
+            trimesh.load(files.at(0).c_str());
+
+            double delta_max = trimesh.bbox().delta_x();
+            if(trimesh.bbox().delta_y() >= delta_max)
+                delta_max = trimesh.bbox().delta_y();
+
+            std::cout << delta_max << std::endl;
+            std::cout << trimesh.bbox().delta_z() << std::endl;
+            double ratio = delta_max/trimesh.bbox().delta_z();
+            std::cout << "### Ratio between max{delta_x,delta_y}/delta_Z: " << ratio << std::endl;
+
+            //AGGIUNGERE LA CONDIZIONE PER LA TRASLAZIONE
+            cinolib::vec3d center = trimesh.bbox().center();
+            std::cout << "### Translate mesh at BBOX center: " << center << std::endl;
+            trimesh.translate(-center);
+            if(setSave.isSet())
+                trimesh.save((get_basename(files.at(0)) + "_translate"+ext_surf).c_str());
+
+            // Set parameters in opt
+            std::string opt = "";
+            if(optFlag.isSet())
+                opt = opt + optFlag.getValue();
+
+            // Run tetrahedralization by exploting Tetgen Library in Cinolib and create a tetrahedralization mesh (m_tet)
+            cinolib::Tetmesh<> volmesh;
+            cinolib::tetgen_wrap(trimesh.vector_verts(), trimesh.vector_polys(), trimesh.vector_edges(), opt, volmesh);
+
+            // double av_vol=0.0;
+            // for(uint pid=0; pid<volmesh.num_polys(); pid++)
+            //     av_vol += volmesh.poly_volume(pid);
+            // av_vol /= volmesh.num_polys();
+            // std::cout << "### Compute poly average volume ... COMPLETED." << std::endl;
+
+            volmesh.translate(center);
+            std::cout << "### Restore coordinates mesh from BBOX center: " << center << " COMPLETED." <<std::endl;
+
+            std::cout << std::endl;
+            std::cout << "#############################################" << std::endl;
+            std::cout << "### Statistics on volume ... " << std::endl;
+            std::cout << "### Poly average volume: " << volmesh.mesh_volume()/volmesh.num_polys() << std::endl;
+            std::cout << "### Edge average length: " << volmesh.edge_avg_length() << std::endl;
+            std::cout << "### Edge max length: " << volmesh.edge_max_length() << std::endl;
+            std::cout << "### Edge min length: " << volmesh.edge_min_length() << std::endl;
+            //std::cout << FYEL("### WARNING: edge length major than 1.5 times edge average length ...") << std::endl;
+            if(volmesh.edge_max_length() > volmesh.edge_avg_length() * 1.5)
+                std::cout << FYEL("### WARNING: (max) edge length major than 1.5 times edge average length ...") << std::endl;
+
+            std::cout << "#############################################" << std::endl;
+            std::cout << std::endl;
+
+            volmesh.save(out_mesh.c_str());
+            std::cout << "\033[0;32mExport mesh file: " << out_mesh << " ... COMPLETED.\033[0m" << std::endl;
+
+            summary.setSummary(volmesh);
+        }
+
+
+        if(voxFlag.isSet())
+        {
+            std::cout << "voxFlag is set ... " << std::endl;
+
+            //MUSE::Quadmesh<> quadmesh;
+            cinolib::Polygonmesh<> quadmesh;
+            quadmesh.load(files.at(0).c_str());
+
+            uint max_voxels_per_side = setMaxVoxelperSide.getValue();
+            cinolib::VoxelGrid grid;
+            cinolib::voxelize(quadmesh, max_voxels_per_side, grid);
+
+            std::cout << "Grid dimensions: " << grid.dim[0] << " x " << grid.dim[1] << " x " << grid.dim[2] << std::endl;
+
+            cinolib::Hexmesh<> volmesh;
+            voxel_grid_to_hexmesh(grid, volmesh, cinolib::VOXEL_INSIDE);
+
+            volmesh.save(out_mesh.c_str());
+            std::cout << "\033[0;32mExport mesh file: " << out_mesh << " ... COMPLETED.\033[0m" << std::endl;
+
+            summary.setSummary(volmesh);
+        }
+
+
+        if(hexFlag.isSet())
+        {
+            std::cout << "hexFlag is set ... " << std::endl;
+
+            //cinolib::Quadmesh<> quadmesh;
+            cinolib::Trimesh<> mesh;
+            mesh.load(files.at(0).c_str());
+
+            MUSE::Hexmesh<> hexmesh(setResx.getValue(), setResy.getValue(), setResz.getValue(), mesh);
+
+            hexmesh.save(out_mesh.c_str());
+            std::cout << "\033[0;32mExport mesh file: " << out_mesh << " ... COMPLETED.\033[0m" << std::endl;
+
+            summary.setSummary(hexmesh);
+        }
+
+        geometa.setMeshSummary(summary);
+        geometa.write(out_volume +"/" + basename + ".json");
+    }
+
+
+    if(createVolObject.isSet()  && meshFiles.getValue().size() > 1)
+        std::cerr << "ERROR: Unexpected number of input files!" << std::endl;
+
+
+    ///
+    /// Merging meshes
+    ///
+    if(mergeMeshes.isSet() && meshFiles.getValue().size() == 2)
+    {
+        std::vector<std::string> files = meshFiles.getValue();
+
+        std::string filename_mesh0 = files.at(0);
+        std::string ext0 = get_extension(filename_mesh0);
+
+        std::string filename_mesh1 = files.at(1);
+        std::string ext1 = get_extension(filename_mesh1);
+
+
+        if(ext0.compare(".off") == 0 || ext0.compare(".obj") == 0)
+        {
+            if(ext1.compare(".off") == 0 || ext1.compare(".obj") == 0)
+            {
+                std::cout << "Meshes are surfaces." << std::endl;
+                //Le mesh sono superfici (controllo sull'estensione), quindi le carico come trimesh
+
+                MUSE::SurfaceMesh<> trimesh0;
+                trimesh0.load(filename_mesh0.c_str());
+                std::cout << "\033[0;32mLoading mesh file: " << filename_mesh0 << " ... COMPLETED.\033[0m" << std::endl;
+                std::string basename0 = get_basename(get_filename(filename_mesh0));
+
+                MUSE::SurfaceMesh<> trimesh1;
+                trimesh1.load(filename_mesh1.c_str());
+                std::cout << "\033[0;32mLoading mesh file: " << filename_mesh1 << " ... COMPLETED.\033[0m" << std::endl;
+                std::string basename1 = get_basename(get_filename(filename_mesh1));
+
+                MUSE::SurfaceMesh<> trimesh;
+                std::string out_mesh = out_surf +"/" + basename0 + "_" + basename1 + ext_surf;
+
+                if(!trimesh0.check_lateral_closing() && !trimesh1.check_lateral_closing())
+                {
+                    merge_meshes(trimesh0, trimesh1, trimesh);
+                    std::cout << "Meshes merge on boundary ... COMPLETED." << std::endl;
+                }
+                else if(trimesh0.check_lateral_closing() && trimesh1.check_lateral_closing())
+                {
+                    cinolib::merge_meshes_at_coincident_vertices(trimesh0, trimesh1, trimesh);
+                    std::cout << "Meshes merge at coincident vertices ... COMPLETED." << std::endl;
+                }
+                else
+                {
+                    std::cout << "Error on meshes type!" << std::endl;
+                    exit(1);
+                }
+                trimesh.save(out_mesh.c_str());
+
+                std::cout << std::endl;
+                std::cout << "P " << trimesh.num_polys() << std::endl;
+                std::cout << "E "<< trimesh.num_edges() << std::endl;
+                std::cout << "V "<< trimesh.num_verts() << std::endl;
+                std::cout << "\033[0;32mSaving mesh file in : " << out_mesh << " ... COMPLETED.\033[0m" << std::endl;
+            }
+            else
+            {
+                std::cerr << "ERROR: Meshes format are different!" << std::endl;
+                exit(1);
+            }
+        }
+        else if(ext0.compare(".mesh") == 0 || ext0.compare(".vtk") == 0) //caso volumetrico
+        {
+            if(ext1.compare(".mesh") == 0 || ext0.compare(".vtk") == 0)
+            {
+                std::cout << "Meshes are volumes." << std::endl;
+
+                MUSE::VolumeMesh<> tetmesh0;
+                //cinolib::Hexmesh<> tetmesh0;
+                tetmesh0.load(filename_mesh0.c_str());
+                MeshType type0 = tetmesh0.set_meshtype();
+                std::cout << "\033[0;32mLoading mesh file: " << filename_mesh0 << " ... COMPLETED.\033[0m" << std::endl;
+                std::string basename0 = get_basename(get_filename(filename_mesh0));
+
+                MUSE::VolumeMesh<> tetmesh1;
+                tetmesh1.load(filename_mesh1.c_str());
+                MeshType type1 = tetmesh1.set_meshtype();
+                std::cout << "\033[0;32mLoading mesh file: " << filename_mesh1 << " ... COMPLETED.\033[0m" << std::endl;
+                std::string basename1 = get_basename(get_filename(filename_mesh1));
+
+                if(type0 != type1)
+                {
+                    std::cout << FRED("Mesh types are different. Merge not possible!") << std::endl;
+                    exit(1);
+                }
+
+                std::string out_mesh = out_volume +"/" + basename0 + "_" + basename1 + ext_vol;
+
+                if(type0 == MeshType::HEXMESH)
+                {
+                    cinolib::Hexmesh<> tetmesh;
+                    //cinolib::Tetmesh<> tetmesh;
+                    std::cout << "The proximity threshold is set on " << proxThreshold.getValue() << std::endl;
+                    merge_meshes_at_coincident_vertices(tetmesh0, tetmesh1, tetmesh, proxThreshold.getValue());
+                    std::cout << "Meshes merge at coincident vertices ... COMPLETED." << std::endl;
+
+                    std::cout << std::endl;
+                    std::cout << "P " << tetmesh.num_polys() << std::endl;
+                    std::cout << "F " << tetmesh.num_faces() << std::endl;
+                    std::cout << "E "<< tetmesh.num_edges() << std::endl;
+                    std::cout << "V "<< tetmesh.num_verts() << std::endl;
+
+                    tetmesh.save(out_mesh.c_str());
+                }
+                else
+                {
+                    //cinolib::Hexmesh<> tetmesh;
+                    cinolib::Tetmesh<> tetmesh;
+                    std::cout << "The proximity threshold is set on " << proxThreshold.getValue() << std::endl;
+                    merge_meshes_at_coincident_vertices(tetmesh0, tetmesh1, tetmesh, proxThreshold.getValue());
+                    std::cout << "Meshes merge at coincident vertices ... COMPLETED." << std::endl;
+
+                    std::cout << std::endl;
+                    std::cout << "P " << tetmesh.num_polys() << std::endl;
+                    std::cout << "F " << tetmesh.num_faces() << std::endl;
+                    std::cout << "E "<< tetmesh.num_edges() << std::endl;
+                    std::cout << "V "<< tetmesh.num_verts() << std::endl;
+
+                    tetmesh.save(out_mesh.c_str());
+                }
+                std::cout << "\033[0;32mSaving mesh file in : " << out_mesh << " ... COMPLETED.\033[0m" << std::endl;
+            }
+            else
+            {
+                std::cerr << "ERROR: Meshes format are different!" << std::endl;
+                exit(1);
+            }
+        }
+        else
+        {
+            std::cerr << "ERROR: Mesh format is not supported." << std::endl;
+            exit(1);
+        }
     }
 
     } catch (ArgException &e)  // catch exceptions
