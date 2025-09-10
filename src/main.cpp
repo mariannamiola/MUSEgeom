@@ -213,6 +213,9 @@ int main(int argc, char** argv)
     SwitchArg objConversion             ("", "obj", "Saving mesh in obj format", cmd, false); //booleano
     SwitchArg vtkConversion             ("", "vtk", "Saving mesh in vtk format", cmd, false); //booleano
 
+    // Format conversion for saving text file (default: .dat)
+    SwitchArg xyzFormat                 ("", "xyz", "Saving text file in xyz format", cmd, false); //booleano
+    SwitchArg csvFormat                 ("", "csv", "Saving text file in csv format", cmd, false); //booleano
 
 
     // ---------------------------------------------------------------------------------------------------------
@@ -311,6 +314,14 @@ int main(int argc, char** argv)
     std::string ext_vol = ".mesh";
     if(vtkConversion.isSet() == true)
         ext_vol = ".vtk";
+
+    // 0) Define file extension - text file
+    std::string ext_txt = ".dat";
+    if(xyzFormat.isSet() == true)
+        ext_txt = ".xyz";
+    else if(csvFormat.isSet())
+        ext_txt = ".csv";
+
 
 
     std::string out_surf = out_geometry +"/surf";
@@ -429,10 +440,10 @@ int main(int argc, char** argv)
                     // Export se richiesto
                     if(setSaveAttributesTable.isSet())
                     {
-                        auto csv_path = out_surf + "/" + get_basename(get_filename(file)) + ".csv";
+                        auto csv_path = out_surf + "/" + get_basename(get_filename(file)) + ext_txt;
                         if(export_attributes_to_csv(file, csv_path) == IOSUCCESS)
                         {
-                            Geometry.setAttributeTable(get_basename(get_filename(file)) + ".csv");
+                            Geometry.setAttributeTable(get_basename(get_filename(file)) + ext_txt);
                         }
 
                         std::cout << "=== Save Attribute Table (shapefile) ... TO TEST!" << std::endl;
@@ -447,14 +458,14 @@ int main(int argc, char** argv)
                         if(!boundaries.empty())
                         {
                             for(uint id=0; id<boundaries.size(); id++)
-                                export3d_xyz(out_surf + "/" + basename + "_" + std::to_string(id) + "@" + ext + ".dat", boundaries[id]);
-                            std::cout << "=== Export content (boundaries) of geospatial file: " << file << std::endl;
+                                export3d_xyz(out_surf + "/" + basename + "_" + std::to_string(id) + "@" + ext + ext_txt, boundaries[id]);
+                            std::cout << "=== Export boundary points from geospatial file: " << file << std::endl;
                         }
                         if(!datasets.empty())
                         {
                             for(uint id=0; id<datasets.size(); id++)
-                                export3d_xyz(out_surf + "/" + basename + "_" + std::to_string(id) + "@" + ext + ".dat", datasets[id]);
-                            std::cout << "=== Export content (datasets) of geospatial file: " << file  << std::endl;
+                                export3d_xyz(out_surf + "/" + basename + "_" + std::to_string(id) + "@" + ext + ext_txt, datasets[id]);
+                            std::cout << "=== Export data points from geospatial file: " << file  << std::endl;
                         }
                     }
 
@@ -779,10 +790,18 @@ int main(int argc, char** argv)
                 const std::string basename = get_basename(get_filename(file));
                 const std::string ext = get_extensionND(get_filename(file));
 
-                for(uint id=0; id<boundaries.size(); id++)
-                    export3d_xyz(out_surf + "/" + basename + "_" + std::to_string(id) + "@" + ext + ".dat", boundaries[id]);
-                for(uint id=0; id<datasets.size(); id++)
-                    export3d_xyz(out_surf + "/" + basename + "_" + std::to_string(id) + "@" + ext + ".dat", datasets[id]);
+                if(!boundaries.empty())
+                {
+                    for(uint id=0; id<boundaries.size(); id++)
+                        export3d_xyz(out_surf + "/" + basename + "_" + std::to_string(id) + "@" + ext + ext_txt, boundaries[id]);
+                    std::cout << "=== Export boundary points from geospatial file: " << file << std::endl;
+                }
+                if(!datasets.empty())
+                {
+                    for(uint id=0; id<datasets.size(); id++)
+                        export3d_xyz(out_surf + "/" + basename + "_" + std::to_string(id) + "@" + ext + ext_txt, datasets[id]);
+                    std::cout << "=== Export data points from geospatial file: " << file  << std::endl;
+                }
             }
 
             if(!triFlag.isSet() && !gridFlag.isSet() && !polygonFlag.isSet()) {
