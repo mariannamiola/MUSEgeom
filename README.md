@@ -51,9 +51,17 @@ cd ${ROOT}
 Executables will be made available in _${ROOT}/bin_ folder.
 
 ## Documentation
-The complete set of options for each MUSE module is available [here](MUSE_Manual.pdf). 
-MUSE can be easily built (see __Building__ section).
+The tool can be easily built (see __Building__ section).
+To get an overview of all available command-line options:
 
+```
+./tool --help
+```
+
+To display help specific to each functionalities:
+```
+./tool --help-vol
+```
 
 ## Examples
 To guarantee replicability, data of our examples are provided in the _example_ folder. 

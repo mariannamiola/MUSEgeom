@@ -76,6 +76,8 @@
 
 #include "muselib/reference_system/coordinate_systems.h"
 
+#include "muselib/help/helpVolume.h"
+
 //for filesystem
 #ifdef __APPLE__
 //#include <filesystem>
@@ -225,7 +227,7 @@ int main(int argc, char** argv)
 
     // Option 7. Merge two meshes
     SwitchArg mergeMeshes                   ("U", "merge", "Merge two trimesh", cmd, false); //booleano
-    ValueArg<double> proxThreshold          ("", "thresh", "Set proximaty threshold", false, 0.0, "int" , cmd);
+    ValueArg<double> proxThreshold          ("", "thresh", "Set threshold", false, 0.0, "double" , cmd);
 
     SwitchArg extractMeshes                 ("S", "split", "Split two trimesh", cmd, false); //booleano
 
@@ -249,8 +251,21 @@ int main(int argc, char** argv)
     ValueArg<std::string> setOutFolder      ("", "outf", "Set folder to save outputs", false, "Directory", "string", cmd);
     ValueArg<int> setPrecision              ("", "prec", "Set precision", false, 6, "int" , cmd);
 
+
+    /// Help
+    SwitchArg helpVol                       ("", "help-vol", "", cmd, false); //booleano
+
     // Parse the argv array.
     cmd.parse(argc, argv);
+
+    /////////////////////////////////////////////
+    /// HELP
+    ///
+
+    if (helpVol.isSet()) {
+        printHelpVolume();
+        return 0;
+    }
 
     ///////////////////////////////////////////////
 
@@ -2602,6 +2617,7 @@ int main(int argc, char** argv)
     ///
     if(createVolObject.isSet() && meshFiles.getValue().size() == 1)
     {
+
         // 0) Creazione cartella per il salvataggio delle mesh volumetriche
         if(!filesystem::exists(out_volume))
             filesystem::create_directory(out_volume);
