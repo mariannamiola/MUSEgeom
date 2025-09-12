@@ -2,7 +2,7 @@
 
 set -e	#exit if an error occours
 
-export EXE=MUSEgeom
+export EXE=MUSEgeom_geom
 export PROJECT_NAME=01_Portofino
 
 # 0. Export paths
@@ -43,7 +43,7 @@ cp ${DATA_SOURCE}/${BATIM}.* ${INWP}
 
 # 2. Set flags
 #######################################################################
-export OPT=a25
+export OPT=a100
 
 
 # 3. Starting script ...
@@ -59,14 +59,14 @@ echo "
 export OUTSURF=${WP}/out/surf
 
 ##Reading vector file and extracting boundary points
-${EXE} -V -p ${WP} --save --xyz
+${EXE} -V -p ${WP} --save --xyz --tri --obj --opt ${OPT}
 mv ${OUTSURF}/${BOUNDARY}_0@${FORMAT0}.xyz ${OUTSURF}/${BOUNDARY}.xyz
 
 ##Reading batimetry as point cloud
-${EXE} -P -p ${WP} --points ${INWP}/${BATIM}.${FORMAT1} --axis Z --thresh 0.0 --tri --concave --obj ###--boundary ${OUTSURF}/${BOUNDARY}.xyz --tri --obj
+${EXE} -P -p ${WP} --points ${INWP}/${BATIM}.${FORMAT1} --axis Z --thresh 0.0 --boundary ${OUTSURF}/${BOUNDARY}.xyz --tri --obj
 
 ##Surface offset
-#${EXE} -O -p ${WP} -m ${OUTSURF}/${INPUT}.obj --delta -z ${HALF_RESZ} --obj
+#${EXE} -O -p ${WP} -m ${OUTSURF}/${BATIM}.obj --abs -z 0.0 --obj
 #mv ${OUTSURF}/${INPUT}_dz.obj ${OUTSURF}/${INPUT}_dzsup.obj
 
 

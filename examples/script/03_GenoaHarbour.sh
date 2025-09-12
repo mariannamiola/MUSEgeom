@@ -37,9 +37,9 @@ cp ${DATA_SOURCE}/${INPUT}.* ${INWP}
 
 # 2. Set flags
 #######################################################################
-export RESX=20
-export RESY=20
-export RESZ=20
+export RESX=40
+export RESY=40
+export RESZ=40
 
 HALF_RESZ=$(echo "$RESZ * 0.5" | bc)
 
@@ -72,4 +72,5 @@ ${EXE} -T -p ${WP} -m ${OUTSURF}/${INPUT}_dzsup.obj -m ${OUTSURF}/${INPUT}_dzinf
 mv ${OUTSURF}/${INPUT}_dzsup-${INPUT}_dzinf.obj ${OUTSURF}/${INPUT}_closed.obj
 
 ##Hexahedral meshing
+${EXE} -M -p ${WP} -m ${OUTSURF}/${INPUT}_closed.obj --hex --resx ${RESX} --resy ${RESY} --resz ${RESZ} --vtk
 ${EXE} -M -p ${WP} -m ${OUTSURF}/${INPUT}_closed.obj --hex --resx ${RESX} --resy ${RESY} --resz ${RESZ}

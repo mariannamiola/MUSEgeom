@@ -1,6 +1,7 @@
 #include "merge_meshes.h"
 
 #include <cinolib/octree.h>
+#include <cinolib/merge_meshes_at_coincident_vertices.h>
 
 template<class M, class V, class E, class P>
 void merge_meshes(const MUSE::SurfaceMesh<M,V,E,P> &mesh0, const MUSE::SurfaceMesh<M,V,E,P> &mesh1, MUSE::SurfaceMesh<M,V,E,P> &mesh_merge)

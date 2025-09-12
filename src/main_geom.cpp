@@ -208,6 +208,8 @@ int main(int argc, char** argv)
     ValueArg<double> setScaleFactorY    ("", "sy", "Set scale factor in Y direction", false, 1.0, "double" , cmd);
     ValueArg<double> setScaleFactorZ    ("", "sz", "Set scale factor in Z direction", false, 1.0, "double" , cmd);
 
+    ValueArg<double> setFactor          ("", "f", "Set moltiplication factor", false, 0.1, "double" , cmd); // ad esempio: 10% di un valore
+
     // Option 9. Loading volumetric mesh
     SwitchArg loadVolume                ("Z", "tetmesh", "Load tetmesh file", cmd, false); //booleano
     SwitchArg extractSurface            ("", "surf", "Extract surface from volume", cmd, false); //booleano
@@ -2487,7 +2489,7 @@ int main(int argc, char** argv)
                 }
                 else if(splitMethod.getValue().compare("BEDGE") == 0)
                 {
-                    std::cout << "=== Management of new degree of resolution by poly split at edges middle point ..." << std::endl;
+                    std::cout << "=== Poly split at boundary edges middle point ..." << std::endl;
                     double inedge_avg = 0.0;
                     int n_inedge = 0;
                     for(uint eid=0; eid < mesh.num_edges(); eid++)
@@ -2500,36 +2502,31 @@ int main(int argc, char** argv)
                     }
                     inedge_avg = inedge_avg/n_inedge;
                     std::cout << "=== (Internal) edge average lenght: " << inedge_avg << std::endl;
+                    std::cout << "=== (Internal) edge average lenght * factor: " << inedge_avg + (inedge_avg * setFactor.getValue()) << std::endl;
                     std::cout << "=== Edge average lenght: " << mesh.edge_avg_length() << std::endl;
 
+                    //DA CONTROLLARE
                     for(uint eid=0; eid < mesh.num_edges(); eid++)
                     {
-                        if(mesh.edge_is_boundary(eid))
+                        if(!mesh.edge_is_boundary(eid)) continue;
+
+                        if(mesh.edge_length(eid) > inedge_avg + (inedge_avg * setFactor.getValue()))
                         {
-                            if(mesh.edge_length(eid) > inedge_avg)
-                            {
-                                std::cout << "=== Edge ID: " << eid << " - Edge lenght: " << mesh.edge_length(eid) << std::endl;
-                                for(int iter=0; iter < setIterations.getValue(); iter++)
-                                {
-                                    std::cout << "=== Start split edge ... iteration: " << iter << std::endl;
+                            // Un edge di bordo dovrebbe avere solo un poligono adiacente
+                            if(mesh.adj_e2p(eid).size() != 1) continue;
 
-                                    std::vector<uint> pid_eid = mesh.adj_e2p(eid);
-                                    if(pid_eid.size() > 1)
-                                    {
-                                        std::cout << FRED("WARNING: Edge with multiple adjacent polygons. Skipping.") << std::endl;
-                                        continue;
-                                    }
+                            std::cout << "=== Edge ID: " << eid << " - Edge lenght: " << mesh.edge_length(eid) << std::endl;
 
-                                    std::cout << "=== pid adj edge: " << pid_eid.size() << std::endl;
+                            //std::vector<uint> pid_eid = mesh.adj_e2p(eid);
 
-                                    cinolib::vec3d v0 = mesh.edge_vert(eid, 0);
-                                    cinolib::vec3d v1 = mesh.edge_vert(eid, 1);
-                                    cinolib::vec3d delta = (v1-v0)/2;
+                            //std::cout << "=== pid adj edge: " << pid_eid.size() << std::endl;
 
-                                    cinolib::vec3d v_med (v0.x()+delta.x(), v0.y()+delta.y(), v0.z()+delta.z());
-                                    mesh.vert_add(v_med);
-                                }
-                            }
+                            cinolib::vec3d v0 = mesh.edge_vert(eid, 0);
+                            cinolib::vec3d v1 = mesh.edge_vert(eid, 1);
+                            cinolib::vec3d delta = (v1-v0)/2;
+
+                            cinolib::vec3d v_med (v0.x()+delta.x(), v0.y()+delta.y(), v0.z()+delta.z());
+                            mesh.vert_add(v_med);
                         }
                     }
                 }

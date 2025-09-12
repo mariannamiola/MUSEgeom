@@ -1,4 +1,5 @@
 #include <iostream>
+#include <ostream>
 #include "helpVolume.h"
 
 void printHelpVolume()

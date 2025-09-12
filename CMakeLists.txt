@@ -6,6 +6,14 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set (USE_ARMADILLO ON)
+
+set(GEOM_SUFFIX "geom")
+set(MANIP_SUFFIX "manip")
+
+set(GEOM_TARGET_NAME ${PROJECT_NAME}_${GEOM_SUFFIX})
+set(MANIP_TARGET_NAME ${PROJECT_NAME}_${MANIP_SUFFIX})
+
+
 ENABLE_LANGUAGE(C)
 
 # make a bin folder to host all the executables
@@ -68,7 +76,14 @@ add_definitions(-DMUSE_USES_LIBIGL)
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/external/libigl/include")
 
 
-add_executable(MUSEgeom
-  src/main.cpp
-)
-target_link_libraries(${PROJECT_NAME} ${GDAL_LIBRARY} PROJ::proj)
+# add_executable(MUSEgeom
+#   src/main.cpp
+#   src/main_manip.cpp
+# )
+
+## build
+add_executable(${GEOM_TARGET_NAME} src/main_geom.cpp)
+add_executable(${MANIP_TARGET_NAME} src/main_manip.cpp)
+
+target_link_libraries(${GEOM_TARGET_NAME} ${GDAL_LIBRARY} PROJ::proj)
+target_link_libraries(${MANIP_TARGET_NAME} ${GDAL_LIBRARY} PROJ::proj)
