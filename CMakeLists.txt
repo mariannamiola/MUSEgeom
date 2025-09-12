@@ -43,9 +43,35 @@ endif()
 
 #####
 # GDAL
-find_package(GDAL REQUIRED)
+# find_package(GDAL REQUIRED)
+# add_definitions(-DMUSE_USES_GDAL)
+# INCLUDE_DIRECTORIES(${GDAL_INCLUDE_DIR})
+
 add_definitions(-DMUSE_USES_GDAL)
-INCLUDE_DIRECTORIES(${GDAL_INCLUDE_DIR})
+find_package(GDAL CONFIG REQUIRED PATHS ${CMAKE_CURRENT_SOURCE_DIR}/external/gdal/installed/lib/cmake/gdal NO_DEFAULT_PATH)
+if (GDAL_FOUND)
+    message(STATUS "GDAL found via CONFIG.")
+endif()
+
+
+#####`
+# VTK
+find_package(VTK CONFIG REQUIRED
+    COMPONENTS
+        CommonCore
+        CommonDataModel
+        IOXML
+        IOLegacy
+    PATHS ${CMAKE_CURRENT_SOURCE_DIR}/external/VTK/installed/lib/cmake/vtk-9.5
+        NO_DEFAULT_PATH)
+if(VTK_FOUND)
+    message(STATUS "VTK found: ${VTK_VERSION}")
+    include_directories(SYSTEM ${VTK_INCLUDE_DIRS})
+endif()
+
+#message("VTK found @ " VTK\n)
+
+
 
 #####
 # concaveman
@@ -85,5 +111,5 @@ include_directories("${CMAKE_CURRENT_SOURCE_DIR}/external/libigl/include")
 add_executable(${GEOM_TARGET_NAME} src/main_geom.cpp)
 add_executable(${MANIP_TARGET_NAME} src/main_manip.cpp)
 
-target_link_libraries(${GEOM_TARGET_NAME} ${GDAL_LIBRARY} PROJ::proj)
-target_link_libraries(${MANIP_TARGET_NAME} ${GDAL_LIBRARY} PROJ::proj)
+target_link_libraries(${GEOM_TARGET_NAME} GDAL::GDAL PROJ::proj ${VTK_LIBRARIES})
+target_link_libraries(${MANIP_TARGET_NAME} GDAL::GDAL PROJ::proj ${VTK_LIBRARIES})
