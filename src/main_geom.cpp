@@ -419,7 +419,8 @@ int main(int argc, char** argv)
         ///
         /// Lambda per trasformazione coordinate
         ///
-        auto applyCoordTransform = [&](std::vector<std::vector<Point3D>>& data_vectors) {
+        auto applyCoordTransform = [&](std::vector<std::vector<Point3D>>& data_vectors)
+        {
             if(!setEPSG.isSet() || setEPSG.getValue() == Project.authority) return;
 
             for(auto& vector : data_vectors) {
@@ -448,11 +449,12 @@ int main(int argc, char** argv)
                     std::vector<std::vector<Point3D>> boundaries, datasets;
                     std::string GDALtype;
 
-                    std::cout << "Loading: " << file << std::endl;
+                    std::cout << "=== Loading: " << file << std::endl;
 
+                    printSpatialReferenceInfo(file, Project.authority);
                     if(load_vectorfile(file, boundaries, datasets, GDALtype) != IOSUCCESS)
                     {
-                        std::cerr << "\033[0;31mERROR loading: " << file << "\033[0m" << std::endl;
+                        std::cerr << "\033[0;31m=== ERROR loading: " << file << "\033[0m" << std::endl;
                         exit(1);
                     }
 
@@ -465,8 +467,8 @@ int main(int argc, char** argv)
                             Geometry.setAttributeTable(get_basename(get_filename(file)) + ext_txt);
                         }
 
-                        std::cout << "=== Save Attribute Table (shapefile) ... TO TEST!" << std::endl;
-                        exit(1);
+                        //std::cout << "=== Save Attribute Table (shapefile) ... TO TEST!" << std::endl;
+                        //exit(0);
                     }
 
                     if(setSave.isSet())
@@ -791,8 +793,9 @@ int main(int argc, char** argv)
             std::vector<std::vector<Point3D>> boundaries, datasets;
             std::string GDALtype;
 
-            std::cout << "Loading: " << file << std::endl;
+            std::cout << "=== Loading: " << file << std::endl;
 
+            printSpatialReferenceInfo(file, Project.authority);
             if(load_vectorfile(file, boundaries, datasets, GDALtype) != IOSUCCESS) {
                 std::cerr << "\033[0;31mERROR loading: " << file << "\033[0m" << std::endl;
                 continue;
@@ -1120,6 +1123,7 @@ int main(int argc, char** argv)
                 float YSizePixel = 1.0;
 
                 // Read raster file
+                printSpatialReferenceInfo(list_grid.at(j), Project.authority);
                 load_rasterfile (list_grid.at(j), grid, XOrigin, YOrigin, nXSize, nYSize, XSizePixel, YSizePixel);
 
                 std::cout << "=== Columns number (nXSize): " << nXSize << ", Rows number (nYSize): " << nYSize << std::endl;

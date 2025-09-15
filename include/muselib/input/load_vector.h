@@ -11,6 +11,8 @@ using namespace MUSE;
 int load_vectorfile             (const std::string filename, std::vector<Point3D> &boundary, std::vector<std::vector<Point3D>> &points, std::string &geometryType);
 
 // Loading ShapeFile (.shp)
+// Read data from a file
+// GDAL - Vector API Tutorial: https://gdal.org/tutorials/vector_api_tut.html
 int load_shapefile_shp          (const std::string filename, std::vector<std::vector<Point3D>> &boundary, std::vector<std::vector<Point3D>> &points, std::string &geometry_type);
 int load_shapefile_xyz          (const std::string filename, std::vector<std::vector<Point3D>> &boundaries);
 

@@ -35,7 +35,7 @@ int load_gridfile (const std::string filename, std::vector<std::vector<float>> &
     // 1. Register all the format drivers that are desired
     GDALAllRegister();
 
-    // 2. Open shape file
+    // 2. Open raster file
     GDALDatasetUniquePtr poDataset;
     const GDALAccess eAccess = GA_ReadOnly;
     poDataset = GDALDatasetUniquePtr(GDALDataset::FromHandle(GDALOpen( filename.c_str(), eAccess )));
