@@ -1,7 +1,6 @@
 #ifndef COORDINATE_SYSTEMS_H
 #define COORDINATE_SYSTEMS_H
 
-#include <gdal/gdal_priv.h>
 #ifdef MUSE_USES_PROJ
 #include <proj/crs.hpp>
 #endif
