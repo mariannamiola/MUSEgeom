@@ -1145,8 +1145,8 @@ int main(int argc, char** argv)
                     for(int col = 0; col < nXSize; col++)
                     {
                         Point3D p;
-                        p.x = XOrigin + col * (/* pixel_size_x se disponibile, altrimenti assumere 1.0 */ XSizePixel);
-                        p.y = YOrigin + row * (/* pixel_size_y se disponibile, altrimenti assumere 1.0 */ YSizePixel);
+                        p.x = XOrigin + (col + 0.5) * (/* pixel_size_x se disponibile, altrimenti assumere 1.0 */ XSizePixel);
+                        p.y = YOrigin + (row + 0.5) * (/* pixel_size_y se disponibile, altrimenti assumere 1.0 */ YSizePixel);
                         p.z = grid.at(row).at(col);
                         p.index = row * nXSize + col;
 
@@ -1156,7 +1156,8 @@ int main(int argc, char** argv)
                 MUSE::SurfaceMeta::DataSummary dataSummary;
                 dataSummary.setDataSummary(data);
                 geometa.setDataSummary(dataSummary);
-                std::cout << "=== Extract coordinates ... COMPLETED." << std::endl;
+                std::cout << "=== Extract coordinates of pixel centroids ... COMPLETED." << std::endl;
+                std::cout << std::endl;
 
                 if(triFlag.isSet())
                 {
@@ -1166,7 +1167,7 @@ int main(int argc, char** argv)
                     // FOR JSON ...
                     paramSurface.type = "TRIMESH";
 
-                    std::cout << "WARNING: Triangulation is performed on XY plane." << std::endl;
+                    std::cout << "=== WARNING: Triangulation is performed on XY plane." << std::endl;
 
                     // Convex hull
                     if(convexFlag.isSet())
@@ -1183,7 +1184,7 @@ int main(int argc, char** argv)
 
                         paramSurface.boundary = "CONVEX HULL";
 
-                        std::cout << "\033[0;32mTriangulation with convex hull ... COMPLETED.\033[0m" << std::endl;
+                        std::cout << "\033[0;32m=== Triangulation with convex hull ... COMPLETED.\033[0m" << std::endl;
                     }
                     else if(concaveFlag.isSet())
                     {
