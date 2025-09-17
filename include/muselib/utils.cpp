@@ -172,6 +172,8 @@ std::vector<std::string> get_vectorfiles (const std::string &project_dir)
 
         if(extname.compare(".shp") == 0 || extname.compare(".gpkg") == 0)
             list.push_back(p.path());
+        else
+            std::cerr << "Vector format not supported: " << extname << std::endl;
     }
 
     return list;
@@ -189,8 +191,10 @@ std::vector<std::string> get_rasterfiles (const std::string &project_dir)
         if(filename.find(".") != std::string::npos)
             extname = filename.substr(filename.find_last_of("."), filename.length());
 
-        if(extname.compare(".asc") == 0 || extname.compare(".gpkg") == 0)
+        if(extname.compare(".asc") == 0 || extname.compare(".gpkg") == 0 || extname.compare(".tif") == 0)
             list.push_back(p.path());
+        else
+            std::cerr << "Raster format not supported: " << extname << std::endl;
     }
 
     return list;

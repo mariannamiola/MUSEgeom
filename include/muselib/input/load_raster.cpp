@@ -18,7 +18,7 @@ int load_rasterfile(const std::string filename, std::vector<std::vector<float>> 
 {
     const std::string ext = filename.substr(filename.find_last_of("."));
 
-    if (ext.compare(".asc") == 0 || ext.compare(".gpkg") == 0)
+    if (ext.compare(".asc") == 0 || ext.compare(".gpkg") == 0 || ext.compare(".tif") == 0)
         return load_gridfile(filename, points, XOrigin, YOrigin, nXSize, nYSize, XSizePixel, YSizePixel);
 
     std::cerr << "ERROR: Unsupported Raster File format." << std::endl;
@@ -36,9 +36,27 @@ int load_gridfile (const std::string filename, std::vector<std::vector<float>> &
     GDALAllRegister();
 
     // 2. Open raster file
-    GDALDatasetUniquePtr poDataset;
-    const GDALAccess eAccess = GA_ReadOnly;
-    poDataset = GDALDatasetUniquePtr(GDALDataset::FromHandle(GDALOpen( filename.c_str(), eAccess )));
+    // GDALDatasetUniquePtr poDataset;
+    // const GDALAccess eAccess = GA_ReadOnly;
+    // poDataset = GDALDatasetUniquePtr(GDALDataset::FromHandle(GDALOpen( filename.c_str(), eAccess )));
+    // std::cout << "Driver Short Name: " << poDataset->GetDriver()->GetDescription() << std::endl;
+
+    GDALDataset *poDataset;
+    poDataset = static_cast<GDALDataset*> (GDALOpenEx(filename.c_str(), GDAL_OF_RASTER, NULL, NULL, NULL ));
+    if( poDataset == NULL )
+    {
+        std::cerr << "Error while loading shapefile " << filename << std::endl;
+        exit(1);
+    }
+
+    // GDALDataset *poDataset = (GDALDataset *) GDALOpenEx(
+    //     filename.c_str(),
+    //     GDAL_OF_READONLY | GDAL_OF_RASTER,
+    //     (const char*[]){"AAIGrid", NULL},
+    //     NULL,
+    //     NULL
+    //     );
+
 
     //GDALDataset *poDataset;
     //poDataset = (GDALDataset*) (GDALOpen(filename.c_str(), GA_ReadOnly));
