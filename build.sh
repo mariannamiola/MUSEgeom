@@ -65,6 +65,8 @@ fi
 cd ${SCRIPT_DIR}
 mkdir -p build
 cd build
-cmake -DCMAKE_BUILD_TYPE=Release ..
-cmake --build . --config Release
+cmake ..
+make
+#cmake -DCMAKE_BUILD_TYPE=Release ..
+#cmake --build . --config Release
 

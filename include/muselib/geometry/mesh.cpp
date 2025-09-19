@@ -726,13 +726,25 @@ cinolib::Trimesh<> concavehull_triangulation (const std::vector<Point3D> &concav
 
 
 
-
+///
+/// \brief constrained_triangulation2
+/// \param boundary3d
+/// \param points
+/// \param opt
+/// \return
+///
 cinolib::Trimesh<> constrained_triangulation2 (const std::vector<Point3D> &boundary3d, const std::vector<Point3D> &points, std::string opt)
 {
+    std::cout << "### Starting triangulation ... " << std::endl;
+
     std::vector<double> triangle_points_in;
     std::vector<double> triangle_holes_in;
     std::vector<unsigned int> segs_in;
 
+    double bbxmin = std::numeric_limits<double>::max();
+    double bbxmax = std::numeric_limits<double>::lowest();
+    double bbymin = std::numeric_limits<double>::max();
+    double bbymax = std::numeric_limits<double>::lowest();
 
     std::vector<Point2D> boundary;
     for (size_t i=0; i < boundary3d.size(); i++)
@@ -741,41 +753,51 @@ cinolib::Trimesh<> constrained_triangulation2 (const std::vector<Point3D> &bound
         pp.x = boundary3d.at(i).x;
         pp.y = boundary3d.at(i).y;
 
+        if (pp.x < bbxmin) bbxmin = pp.x;
+        if (pp.x > bbxmax) bbxmax = pp.x;
+        if (pp.y < bbymin) bbymin = pp.y;
+        if (pp.y > bbymax) bbymax = pp.y;
+
         boundary.push_back(pp);
     }
+    std::cout << "### Computing boundary bbox ... COMPLETED." << std::endl;
     std::cout << "### Number of boundary points: " << boundary.size() << std::endl;
 
-    // for (size_t i=0; i < points.size(); i++)
-    // {
-    //     //serializzazione dei punti da Point3D a xy
-    //     triangle_points_in.push_back(points.at(i).x);
-    //     triangle_points_in.push_back(points.at(i).y);
-
-    //     Point2D pp;
-    //     pp.x = points.at(i).x;
-    //     pp.y = points.at(i).y;
-
-    //     //controllo se il punto pp è interno al poligono
-    //     if (!point_in_polygon(pp, boundary)) //se non è interno, continua
-    //         continue;
-    // }
+    size_t max_boundary_pts = boundary.size();
+    size_t max_interior_pts = points.size(); ////////////////////////CONTINUARE
+    triangle_points_in.reserve(boundary.size() * 2);
+    segs_in.reserve(boundary.size() * 2);
 
     std::vector<uint> id_inpoints, id_boundary;
+    id_boundary.reserve(boundary.size());
     for (size_t i=0; i < points.size(); i++)
     {
         Point2D pp;
         pp.x = points.at(i).x;
         pp.y = points.at(i).y;
 
-        //controllo se il punto pp è interno al poligono
-        if (point_in_polygon(pp, boundary)) //se è interno
-        {
-            //serializzazione dei punti da Point3D a xy
-            triangle_points_in.push_back(pp.x);
-            triangle_points_in.push_back(pp.y);
+        // Primo filtro: bounding box
+        if (pp.x < bbxmin || pp.x > bbxmax || pp.y < bbymin || pp.y > bbymax)
+            continue;
 
-            id_inpoints.push_back(i); //indice nel vettore points
-        }
+        // Secondo filtro: punto dentro il poligono
+        if (!point_in_polygon(pp, boundary))
+            continue;
+
+        // serializzazione dei punti da Point3D a xy
+        triangle_points_in.push_back(pp.x);
+        triangle_points_in.push_back(pp.y);
+        id_inpoints.push_back(i); //indice nel vettore points
+
+        //controllo se il punto pp è interno al poligono
+        // if (point_in_polygon(pp, boundary)) //se è interno
+        // {
+        //     //serializzazione dei punti da Point3D a xy
+        //     triangle_points_in.push_back(pp.x);
+        //     triangle_points_in.push_back(pp.y);
+
+        //     id_inpoints.push_back(i); //indice nel vettore points
+        // }
     }
     std::cout << "### Number of points: " << points.size() << std::endl;
     std::cout << "### Number of internal points (in boundary): " << triangle_points_in.size() << " | " << triangle_points_in.size()/2 << std::endl;
@@ -785,9 +807,7 @@ cinolib::Trimesh<> constrained_triangulation2 (const std::vector<Point3D> &bound
     size_t counter = 0;
 
     Point2D last;
-
     int first_id = -1, last_id = -1 ;
-
     int counter_dupl = 0;
     //for (const Point2D &p : boundary)
     for (size_t i=0; i < boundary.size(); i++)
@@ -796,38 +816,50 @@ cinolib::Trimesh<> constrained_triangulation2 (const std::vector<Point3D> &bound
         p.x = boundary.at(i).x;
         p.y = boundary.at(i).y;
 
-        bool far = true;
+        //bool far = true;
 
         if (counter > 0)
         {
-            Point2D cp, cl;
-            cp.x = p.x;
-            cp.y = p.y;
+            double dx = p.x - last.x;
+            double dy = p.y - last.y;
 
-            cl.x = last.x;
-            cl.y = last.y;
-
-            if (dist(cp, cl) < 1e-2) //se la distanza è piccola, ci sono dei punti duplicati sul bordo
+            if((dx * dx + dy * dy) < 1e-4) //se la distanza è piccola, ci sono dei punti duplicati sul bordo
             {
                 counter_dupl++;
                 std::cout << "\033[0;33mWARNING: Duplicated on boundary - IGNORED\033[0m" << std::endl;
-                far = false; //flag lontani = falso!
+                continue;
             }
+
+            // Point2D cp, cl;
+            // cp.x = p.x;
+            // cp.y = p.y;
+
+            // cl.x = last.x;
+            // cl.y = last.y;
+
+            // if (dist(cp, cl) < 1e-2) //se la distanza è piccola, ci sono dei punti duplicati sul bordo
+            // {
+            //     counter_dupl++;
+            //     std::cout << "\033[0;33mWARNING: Duplicated on boundary - IGNORED\033[0m" << std::endl;
+            //     far = false; //flag lontani = falso!
+            // }
         }
 
-        if (!far) //se far = vero -> se i punti sono lontani, continua
-            continue;
+        // if (!far) //se far = vero -> se i punti sono lontani, continua
+        //     continue;
 
         //aggiungere punti di bordo alla lista serializzata dei punti
         triangle_points_in.push_back(p.x);
         triangle_points_in.push_back(p.y);
         id_boundary.push_back(i); //indice nel vettore boundary
 
-        last.x = p.x;
-        last.y = p.y;
+        last = p;
+        // last.x = p.x;
+        // last.y = p.y;
 
         //posizione ultimo punto:
-        unsigned long id = triangle_points_in.size()/2 -1;
+        size_t id = triangle_points_in.size()/2 -1;
+        //unsigned long id = triangle_points_in.size()/2 -1;
 
         //aggiorno indici di first e last point
         if (first_id == -1)
@@ -861,29 +893,6 @@ cinolib::Trimesh<> constrained_triangulation2 (const std::vector<Point3D> &bound
     std::cout << "Constrained Delaunay triangulation on boundary ... COMPLETED." << std::endl;
 
     std::vector<double> triangle_points_out_coords;
-
-
-    // for (unsigned int i=0; i < triangle_points_out.size(); i+=2)
-    // {
-    //     triangle_points_out_coords.push_back(triangle_points_out.at(i));
-    //     triangle_points_out_coords.push_back(triangle_points_out.at(i+1));
-
-    //     if (vid < points.size())
-    //         triangle_points_out_coords.push_back(points.at(vid).z);
-
-    //     else
-    //     {
-    //         if(vid < points.size()+boundary3d.size())
-    //         {
-    //             triangle_points_out_coords.push_back(boundary3d.at(vid_b).z);
-    //             vid_b++;
-    //         }
-    //         else
-    //             triangle_points_out_coords.push_back(0.0);
-    //     }
-
-    //     vid++;
-    // }
 
     uint vid=0, vid_b=0, counter_null=0;
     for (uint i=0; i < triangle_points_out.size(); i+=2)

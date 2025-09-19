@@ -261,13 +261,6 @@ int main(int argc, char** argv)
 
 
 
-
-
-
-
-
-
-
     /// Help
     SwitchArg helpVol                       ("", "help-vol", "", cmd, false); //booleano
 
@@ -1582,7 +1575,7 @@ int main(int argc, char** argv)
                 std::cout << "### New size of data vector (after random sampling): " << data.size() << std::endl;
                 std::cout << std::endl;
 
-                std::string filename_rand = "_subset.xyz";
+                std::string filename_rand = "_subset" + ext_txt;
                 export3d_xyz(out_surf + "/" + filename_rand, data);
             }
 

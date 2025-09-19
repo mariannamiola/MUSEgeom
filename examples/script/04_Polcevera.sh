@@ -25,14 +25,17 @@ export WP=${WORK_DIR}/${PROJECT_NAME}
 
 
 # 1. Set input data
-export INPUT=piana
-export FORMAT0=obj
+export BOUNDARY=polcevera_dense ##test ##polcevera_dense
+export FORMAT0=gpkg
+
+export DEM=piana ##DEM
 export PLANE=p_bottom_1
 export FORMAT1=xyz
 
 export INWP=${WP}/in
 mkdir -p ${INWP}
-cp ${DATA_SOURCE}/${INPUT}.* ${INWP}
+cp ${DATA_SOURCE}/${BOUNDARY}.* ${INWP}
+cp ${DATA_SOURCE}/${DEM}.* ${INWP}
 cp ${DATA_SOURCE}/${PLANE}.* ${INWP}
 
 #######################################################################
@@ -58,6 +61,13 @@ export OUTSURF=${WP}/out/surf
 
 
 
+##########  GEOMETRY  ###########
+${EXE} -V -p ${WP} --save --xyz
+mv ${OUTSURF}/${BOUNDARY}_0@${FORMAT0}.${FORMAT1} ${OUTSURF}/${BOUNDARY}.${FORMAT1}
+
+
+${EXE} -P -p ${WP} --points ${INWP}/${DEM}.${FORMAT1} --tri --obj --boundary ${OUTSURF}/${BOUNDARY}.${FORMAT1}
+
 ##Hexahedral meshing
-${EXE} -M -p ${WP} -m ${INWP}/${INPUT}.${FORMAT0} --tet --vtk --plane ${INWP}/${PLANE}.${FORMAT1}
+#${EXE} -M -p ${WP} -m ${INWP}/${INPUT}.${FORMAT0} --tet --vtk --plane ${INWP}/${PLANE}.${FORMAT1}
 

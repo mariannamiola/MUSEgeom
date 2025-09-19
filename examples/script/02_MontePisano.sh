@@ -2,7 +2,7 @@
 
 set -e	#exit if an error occours
 
-export EXE=MUSEgeom
+export EXE=MUSEgeom_geom
 export PROJECT_NAME=02_MontePisano
 
 # 0. Export paths
