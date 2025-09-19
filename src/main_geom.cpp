@@ -150,6 +150,7 @@ int main(int argc, char** argv)
     SwitchArg concaveFlag               ("", "concave", "Set concave hull for points triangulation", cmd, false); //booleano
     ValueArg<std::string> setBoundary   ("", "boundary", "Set external boundary for points triangulation", false, "", "filename", cmd);
     ValueArg<std::string> optFlag       ("", "opt", "Set optimization flags", false, "", "flag", cmd);
+    ValueArg<std::string> optAdditionalFlag ("", "flag", "Set additional optimization flags", false, "", "flag", cmd);
 
     // Option 4. Set grid
     SwitchArg gridFlag                  ("", "grid", "Set grid for 2D meshing", cmd, false); //booleano
@@ -252,6 +253,19 @@ int main(int argc, char** argv)
 
     ValueArg<std::string> setOutFolder      ("", "outf", "Set folder to save outputs", false, "Directory", "string", cmd);
     ValueArg<int> setPrecision              ("", "prec", "Set precision", false, 6, "int" , cmd);
+
+    // Tetgenerator - integration
+    ValueArg<std::string> xyzPlane("", "plane", "Plane", false, "plane", "string", cmd);
+    ValueArg<double> planeShift("", "plane-shift", "Plane shift", false, 0.0, "double", cmd);
+
+
+
+
+
+
+
+
+
 
 
     /// Help
@@ -2256,7 +2270,9 @@ int main(int argc, char** argv)
         std::cerr << "ERROR: Unexpected number of input files!" << std::endl;
 
 
-    //ESTENSIONE APPLICATIVO PER GENERARE MESH TETRAEDRICHE CON ALTRI TIPI DI MESH!! IN BASE ALLA FLAG CHE GLI PASSO: --tet, --hex, --vox
+    ///
+    /// Creating volume mesh
+    ///
     if(createVolObject.isSet() && meshFiles.getValue().size() == 1)
     {
         // 0) Creazione cartella per il salvataggio delle mesh volumetriche
@@ -2292,7 +2308,231 @@ int main(int argc, char** argv)
         }
 
         // Se è settato il flag per i tetraedri ...
-        if(tetFlag.isSet())
+        if(tetFlag.isSet() && xyzPlane.isSet())
+        {
+            std::cout << "=== tetFlag is set ... " << std::endl;
+            std::cout << "=== xyzPlane is set ... " << std::endl;
+
+            bool shift_plane = false;
+            double plane_shift = 0.0;
+            if (planeShift.isSet())
+            {
+                plane_shift = planeShift.getValue();
+                shift_plane = true;
+            }
+            cinolib::Trimesh<> trimesh;
+            trimesh.load(files.at(0).c_str());
+
+            double avg_length = trimesh.edge_avg_length();
+            std::vector<cinolib::vec3d> ppoints;
+            double plane_min_z = DBL_MAX;
+
+            std::ifstream pf;
+            pf.open(xyzPlane.getValue());
+
+            double x,y,z;
+            while (pf >> x >> y >> z)
+            {
+                ppoints.push_back(cinolib::vec3d(x,y,z));
+                if (z < plane_min_z) plane_min_z = z;
+            }
+            std::cout << "=== Reading plane from file: " << xyzPlane.getValue() << " COMPLETED." << std::endl;
+
+            cinolib::Plane plane (ppoints);
+            const std::vector<uint> bverts = trimesh.get_ordered_boundary_vertices();
+            std::vector<cinolib::vec3d> bverts_proj;
+
+            for (uint vid : bverts)
+            {
+                cinolib::vec3d intersection;
+                cinolib::vec3d p2 = trimesh.vert(vid);
+                p2.z() = plane_min_z;
+                cinolib::Segment segm (0, trimesh.vert(vid), p2);
+
+                if (!intersectPlaneSegment(plane,segm,intersection)) //.vert(vid));
+                {
+                    std::cerr << "=== ERROR: No intersection is found!" << std::endl;
+                }
+
+                bverts_proj.push_back(intersection);
+            }
+
+            std::cout << "=== Projected" << std::endl;
+            std::vector<uint> segms;
+
+            for (uint i=0; i < bverts_proj.size(); i++)
+            {
+                segms.push_back(i);
+                segms.push_back(i+1);
+            }
+
+            segms.push_back(bverts_proj.size()-1);
+            segms.push_back(0);
+
+            std::string triangle_flags = "";
+            if (optAdditionalFlag.isSet())
+                triangle_flags = optAdditionalFlag.getValue();
+
+            if (triangle_flags.length() == 0)
+            {
+                double avg_area = 0.0;
+
+                for (uint pid=0; pid < trimesh.num_polys(); pid++)
+                    avg_area += trimesh.poly_area(pid);
+
+                avg_area /= trimesh.num_polys();
+
+                avg_area *=2.0;
+
+                triangle_flags = "pYa" + std::to_string(avg_area);
+            }
+            std::cout << "=== Set triangle flags as ... " << triangle_flags << std::endl;
+
+            cinolib::Trimesh<> mbot;
+            triangle_wrap(bverts_proj, segms, std::vector<cinolib::vec3d> (), plane_min_z, triangle_flags.c_str() , mbot);
+
+            std::cout << "=======" << std::endl;
+
+            for (uint vid=0 ; vid < mbot.num_verts(); vid++)
+            {
+                // vec3d pv = plane.project_onto(mbot.vert(vid));
+
+                cinolib::vec3d intersection;
+                cinolib::vec3d p2 = mbot.vert(vid);
+                p2.z() = trimesh.bbox().max.z();
+                cinolib::Segment segm (0, mbot.vert(vid), p2);
+                intersectPlaneSegment(plane,segm,intersection); //.vert(vid));
+
+                mbot.vert(vid).z() = intersection.z();
+            }
+
+            std::cout << "projected" << std::endl;
+
+            std::cout << trimesh.get_ordered_boundary_vertices().size() << std::endl;
+            std::cout << mbot.get_ordered_boundary_vertices().size() << std::endl;
+
+            for (uint pid=0; pid < mbot.num_polys(); pid++)
+            {
+                const std::vector<uint> vp = mbot.vector_polys().at(pid);
+                mbot.vector_polys().at(pid).at(0) = vp.at(2);
+                mbot.vector_polys().at(pid).at(2) = vp.at(0);
+            }
+
+            mbot.update_p_normals();
+
+            cinolib::Trimesh<> total = trimesh;
+            total += mbot;
+
+            for (uint pid=0; pid < total.num_polys(); pid++)
+                total.poly_data(pid).label=INT_MAX;
+
+            uint n_bverts = bverts.size();
+            uint n_edges = total.num_edges();
+
+            for (uint i=0; i < n_bverts-1; i++)
+            {
+                total.poly_add(bverts.at(i), trimesh.num_verts() +i, bverts.at(i+1));
+                total.poly_add(bverts.at(i+1), trimesh.num_verts() +i, trimesh.num_verts() +i+1);
+                // std::cout << total.num_polys() << std::endl;
+            }
+
+            total.poly_add(bverts.at(bverts.size()-1), trimesh.num_verts() +bverts.size()-1, bverts.at(0));
+            total.poly_add(bverts.at(0), trimesh.num_verts() +bverts.size()-1, trimesh.num_verts() +0);
+
+            bool split = false;
+            uint n_splits = 0;
+
+            do
+            {
+                split = false;
+                for (int eid=total.num_edges()-1; eid >=n_edges; eid--)
+                    if (total.edge_length(eid) > avg_length)
+                    {
+                        if (total.poly_data(total.adj_e2p(eid).at(0)).label < INT_MAX && total.poly_data(total.adj_e2p(eid).at(1)).label < INT_MAX)
+                        {
+                            total.edge_split(eid);
+                            split=true;
+                        }
+                    }
+                n_splits++;
+            } while (/*split == true*/n_splits < 2);
+
+            cinolib::Tetmesh<> tetmesh, tmp;
+
+            cinolib::vec3d translate_vec = total.bbox().center();
+            total.translate(-translate_vec);
+
+            std::string tetgen_flags = "";
+            if (optFlag.isSet())
+                tetgen_flags = optFlag.getValue();
+
+            if (tetgen_flags.length() == 0)
+            {
+                tetgen_wrap(total, "Y", tmp);
+
+                double avg_vol=0;
+
+                for (uint pid=0; pid < tmp.num_polys(); pid++)
+                {
+                    // total.vert_add(tmp.poly_centroid(pid));
+                    avg_vol += tmp.poly_volume(pid);
+                }
+
+                avg_vol /= tmp.num_polys();
+
+                double vol = avg_vol / 1.1;
+
+                tetgen_flags = "Ya" + std::to_string(vol);
+            }
+            std::cout << "=== Set tetgen flags as ... " << tetgen_flags << std::endl;
+            tetgen_wrap(total, tetgen_flags, tetmesh);
+            // tetgen_wrap(total, "Y" , tetmesh);
+
+            tetmesh.translate(translate_vec);
+
+            for (cinolib::vec3d &p : ppoints)
+                p.z() += plane_shift;
+
+            cinolib::Plane shifted_plane (ppoints);
+
+            std::vector<uint> tbsplit;
+            for (int pid = 0; pid <= tetmesh.num_polys()-1; pid++)
+            {
+                uint v_up=0;
+                uint v_down=0;
+
+                for (uint v=0; v < 4; v++)
+                {
+                    cinolib::vec3d c = tetmesh.poly_vert(pid, v);
+                    cinolib::vec3d s0 = c; s0.z() = tetmesh.bbox().min.z();
+                    cinolib::vec3d s1 = c; s1.z() = tetmesh.bbox().max.z();
+
+                    cinolib::Segment segm (0, s0, s1);
+
+                    cinolib::vec3d intersection;
+                    intersectPlaneSegment(shifted_plane, segm, intersection);
+
+                    if (intersection.z() > c.z())
+                        v_up++;
+                    else
+                        v_down++;
+                }
+
+                if ( v_up > 0 && v_down > 0 )
+                    tbsplit.push_back(pid);
+            }
+
+            std::cout << "Splitting " << tbsplit.size() << " tets... " << std::endl;
+
+            tetmesh.polys_split(tbsplit);
+
+            std::cout << tetmesh.num_verts() << "V / " << tetmesh.num_polys() << "P" << std::endl;
+
+            tetmesh.save(out_mesh.c_str());
+
+        }
+
+        if(tetFlag.isSet() && !xyzPlane.isSet())
         {
             std::cout << "=== tetFlag is set ... " << std::endl;
 
@@ -2613,153 +2853,6 @@ int main(int argc, char** argv)
         geometa.write(get_filename(filename_mesh) + suffix + ".json");
     }
 
-
-    ///
-    /// Loading and editing volume mesh
-    ///
-    if(createVolObject.isSet() && meshFiles.getValue().size() == 1)
-    {
-
-        // 0) Creazione cartella per il salvataggio delle mesh volumetriche
-        if(!filesystem::exists(out_volume))
-            filesystem::create_directory(out_volume);
-
-
-        // 1) Passaggio meshfile
-        std::vector<std::string> files = meshFiles.getValue();
-        //std::string filename_mesh = files.at(0);
-
-        MUSE::VolumeMeta geometa;
-        geometa.setProject(Project);
-
-        std::vector<std::string> excommands;
-        excommands.push_back(command);
-        geometa.setCommands(excommands);
-
-        std::vector<std::string> deps;
-        deps.push_back(filesystem::relative(get_basename(files.at(0)) + ".json", Project.folder));
-        geometa.setDependencies(deps);
-
-
-        MUSE::Volume summary;
-
-        std::cout << "\033[0;32mLoading mesh file: " << files.at(0) << " ... COMPLETED.\033[0m" << std::endl;
-        std::string basename = files.at(0).substr(files.at(0).find_last_of("/")+1, files.at(0).length());
-        basename = get_basename(basename);
-
-        std::string out_mesh = out_volume +"/" + basename + ext_vol;
-
-        // Se è settato il flag per i tetraedri ...
-        if(tetFlag.isSet())
-        {
-            std::cout << "### tetFlag is set ... " << std::endl;
-
-            //se voglio i tet ...
-            cinolib::Trimesh<> trimesh;
-            trimesh.load(files.at(0).c_str());
-
-            double delta_max = trimesh.bbox().delta_x();
-            if(trimesh.bbox().delta_y() >= delta_max)
-                delta_max = trimesh.bbox().delta_y();
-
-            std::cout << delta_max << std::endl;
-            std::cout << trimesh.bbox().delta_z() << std::endl;
-            double ratio = delta_max/trimesh.bbox().delta_z();
-            std::cout << "### Ratio between max{delta_x,delta_y}/delta_Z: " << ratio << std::endl;
-
-            //AGGIUNGERE LA CONDIZIONE PER LA TRASLAZIONE
-            cinolib::vec3d center = trimesh.bbox().center();
-            std::cout << "### Translate mesh at BBOX center: " << center << std::endl;
-            trimesh.translate(-center);
-            if(setSave.isSet())
-                trimesh.save((get_basename(files.at(0)) + "_translate"+ext_surf).c_str());
-
-            // Set parameters in opt
-            std::string opt = "";
-            if(optFlag.isSet())
-                opt = opt + optFlag.getValue();
-
-            // Run tetrahedralization by exploting Tetgen Library in Cinolib and create a tetrahedralization mesh (m_tet)
-            cinolib::Tetmesh<> volmesh;
-            cinolib::tetgen_wrap(trimesh.vector_verts(), trimesh.vector_polys(), trimesh.vector_edges(), opt, volmesh);
-
-            // double av_vol=0.0;
-            // for(uint pid=0; pid<volmesh.num_polys(); pid++)
-            //     av_vol += volmesh.poly_volume(pid);
-            // av_vol /= volmesh.num_polys();
-            // std::cout << "### Compute poly average volume ... COMPLETED." << std::endl;
-
-            volmesh.translate(center);
-            std::cout << "### Restore coordinates mesh from BBOX center: " << center << " COMPLETED." <<std::endl;
-
-            std::cout << std::endl;
-            std::cout << "#############################################" << std::endl;
-            std::cout << "### Statistics on volume ... " << std::endl;
-            std::cout << "### Poly average volume: " << volmesh.mesh_volume()/volmesh.num_polys() << std::endl;
-            std::cout << "### Edge average length: " << volmesh.edge_avg_length() << std::endl;
-            std::cout << "### Edge max length: " << volmesh.edge_max_length() << std::endl;
-            std::cout << "### Edge min length: " << volmesh.edge_min_length() << std::endl;
-            //std::cout << FYEL("### WARNING: edge length major than 1.5 times edge average length ...") << std::endl;
-            if(volmesh.edge_max_length() > volmesh.edge_avg_length() * 1.5)
-                std::cout << FYEL("### WARNING: (max) edge length major than 1.5 times edge average length ...") << std::endl;
-
-            std::cout << "#############################################" << std::endl;
-            std::cout << std::endl;
-
-            volmesh.save(out_mesh.c_str());
-            std::cout << "\033[0;32mExport mesh file: " << out_mesh << " ... COMPLETED.\033[0m" << std::endl;
-
-            summary.setSummary(volmesh);
-        }
-
-
-        if(voxFlag.isSet())
-        {
-            std::cout << "voxFlag is set ... " << std::endl;
-
-            //MUSE::Quadmesh<> quadmesh;
-            cinolib::Polygonmesh<> quadmesh;
-            quadmesh.load(files.at(0).c_str());
-
-            uint max_voxels_per_side = setMaxVoxelperSide.getValue();
-            cinolib::VoxelGrid grid;
-            cinolib::voxelize(quadmesh, max_voxels_per_side, grid);
-
-            std::cout << "Grid dimensions: " << grid.dim[0] << " x " << grid.dim[1] << " x " << grid.dim[2] << std::endl;
-
-            cinolib::Hexmesh<> volmesh;
-            voxel_grid_to_hexmesh(grid, volmesh, cinolib::VOXEL_INSIDE);
-
-            volmesh.save(out_mesh.c_str());
-            std::cout << "\033[0;32mExport mesh file: " << out_mesh << " ... COMPLETED.\033[0m" << std::endl;
-
-            summary.setSummary(volmesh);
-        }
-
-
-        if(hexFlag.isSet())
-        {
-            std::cout << "hexFlag is set ... " << std::endl;
-
-            //cinolib::Quadmesh<> quadmesh;
-            cinolib::Trimesh<> mesh;
-            mesh.load(files.at(0).c_str());
-
-            MUSE::Hexmesh<> hexmesh(setResx.getValue(), setResy.getValue(), setResz.getValue(), mesh);
-
-            hexmesh.save(out_mesh.c_str());
-            std::cout << "\033[0;32mExport mesh file: " << out_mesh << " ... COMPLETED.\033[0m" << std::endl;
-
-            summary.setSummary(hexmesh);
-        }
-
-        geometa.setMeshSummary(summary);
-        geometa.write(out_volume +"/" + basename + ".json");
-    }
-
-
-    if(createVolObject.isSet()  && meshFiles.getValue().size() > 1)
-        std::cerr << "ERROR: Unexpected number of input files!" << std::endl;
 
 
     ///

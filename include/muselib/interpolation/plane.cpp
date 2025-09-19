@@ -2,6 +2,42 @@
 
 using namespace MUSE;
 
+///
+/// \brief intersectPlaneSegment
+/// \param plane
+/// \param segment
+/// \param intersection
+/// \return
+///
+bool intersectPlaneSegment(const cinolib::Plane& plane, const cinolib::Segment& segment, cinolib::vec3d& intersection)
+{
+    cinolib::vec3d dir = segment.v[1] - segment.v[0]; // Segment direction
+    double denom = plane.n.dot(dir);
+
+    // Check if segment is parallel to the plane
+    if (std::abs(denom) < 1e-6) {
+        return false; // No intersection (parallel)
+    }
+
+    // Compute intersection parameter t
+    double t = plane.n.dot(plane.p - segment.v[0]) / denom;
+
+    // Check if intersection is within segment bounds
+    if (t < 0.0 || t > 1.0) {
+        return false; // Intersection is outside the segment
+    }
+
+    // Compute intersection point
+    intersection = segment.v[0] + t * dir;
+    return true;
+}
+
+
+///
+/// \brief fitPlane
+/// \param points
+/// \return
+///
 fittedPlane fitPlane(const std::vector<Point3D> &points)
 {
     fittedPlane parameters;
@@ -77,34 +113,4 @@ fittedPlane fitPlane(const std::vector<Point3D> &points)
 }
 
 
-// void OK_interpolation (const std::vector<double> &residual, const std::vector<double> &coord_x, const std::vector<double> &coord_y, const std::vector<double> &coord_z, std::vector<point3d> &points_to_est)
-// {
-//     //DATA PREPARATION
-//     normalscore normal_residual = normal_score(residual);
-//     std::vector<point3d> res_input;
-//     for(uint i=0; i< normal_residual.values.size(); i++)
-//         res_input.push_back(point3d({coord_x.at(i), coord_y.at(i), coord_z.at(i)}, {normal_residual.values.at(i)}));
 
-//     //EXPERIMENTAL VARIOGRAM COMPUTATION
-//     exp_variog exp_vario = exp_variogram (normal_residual.values, coord_x, coord_y, coord_z, "VARIABLE", 1.0, 15, -DBL_MAX, 2.0);
-//     exp_vario = clean_experimental_variogram(exp_vario, 10);
-
-//     //FITTING VARIOGRAM
-//     std::cout << "Automatic fitting of experimental variogram ... " << std::endl;
-//     variogram fitted_exp_vario = fit_variogram(exp_vario, 100.0, 100.0);
-
-//     Variogram Vario;
-//     Vario.set_range(fitted_exp_vario.range);
-//     Vario.nugget = fitted_exp_vario.nugget;
-//     Vario.sill = fitted_exp_vario.sill - fitted_exp_vario.nugget;
-//     //MODIFICATO COME 1 - NUGGET!!!!!!!!!!!!!!!!!
-//     Vario.set_azimuth(fitted_exp_vario.get_azimuth());
-
-//     variogram_type type;
-//     convert_from_str(fitted_exp_vario.type, type);
-//     Vario.type = type;
-
-//     covariance covar = covariance(Vario);
-
-//     //ordinary_kriging(points_to_est.size(), points_to_est, res_input, covar, fitted_exp_vario.range, 10, false);
-// }

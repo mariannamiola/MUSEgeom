@@ -7,6 +7,9 @@
 #include <iostream>
 #include <algorithm>
 
+#include <cinolib/find_intersections.h>
+#include <cinolib/geometry/plane.h>
+
 #include <muselib/data_structures/point.h>
 
 using namespace MUSE;
@@ -22,8 +25,8 @@ struct fittedPlane
 };
 
 
-
-fittedPlane fitPlane(const std::vector<Point3D> &points);
+bool intersectPlaneSegment  (const cinolib::Plane& plane, const cinolib::Segment& segment, cinolib::vec3d& intersection);
+fittedPlane fitPlane        (const std::vector<Point3D> &points);
 
 
 #ifndef STATIC_MUSELIB

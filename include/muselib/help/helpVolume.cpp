@@ -13,10 +13,12 @@ void printHelpVolume()
     std::cout << "  --vox                   Generate voxelized hexahedral mesh\n";
     std::cout << "  --hex                   Generate structured hexahedral mesh from a surface\n";
     std::cout << "  --opt <params>          Optional TetGen parameters (e.g., 'pq1.2a0.1')\n";
+    std::cout << "  --flag <params>         Optional Triangle parameters\n";
     std::cout << "  --save                  Save the translated surface mesh (before tetrahedralization)\n";
     std::cout << "  --maxVoxelPerSide <N>   Set voxel resolution per side (for voxel grid)\n";
     std::cout << "  --resX --resY --resZ    Resolution in X/Y/Z (for structured hex mesh)\n";
     std::cout << "  meshFile                Input surface mesh (only one file allowed)\n";
+    std::cout << "  --plane                 Input plane to cut tetrahedral mesh\n";
     std::cout << "\n";
     std::cout << "Examples:\n";
     std::cout << "  ./app --createVolObject --tet model.obj --opt 'pq1.2a0.1'\n";
