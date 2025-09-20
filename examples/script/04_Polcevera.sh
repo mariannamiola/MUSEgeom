@@ -62,12 +62,13 @@ export OUTSURF=${WP}/out/surf
 
 
 ##########  GEOMETRY  ###########
+#Reading vector file and extract the boundary
 ${EXE} -V -p ${WP} --save --xyz
 mv ${OUTSURF}/${BOUNDARY}_0@${FORMAT0}.${FORMAT1} ${OUTSURF}/${BOUNDARY}.${FORMAT1}
 
+#Triangulating DEM constrained to the boundary (with random subset of points)
+${EXE} -P -p ${WP} --points ${INWP}/${DEM}.${FORMAT1} --subset 100000 --tri --obj --boundary ${OUTSURF}/${BOUNDARY}.${FORMAT1}
 
-${EXE} -P -p ${WP} --points ${INWP}/${DEM}.${FORMAT1} --tri --obj --boundary ${OUTSURF}/${BOUNDARY}.${FORMAT1}
-
-##Hexahedral meshing
-#${EXE} -M -p ${WP} -m ${INWP}/${INPUT}.${FORMAT0} --tet --vtk --plane ${INWP}/${PLANE}.${FORMAT1}
+#Tetrahedral meshing: cutting tetrahedral mesh on a plane
+${EXE} -M -p ${WP} -m ${OUTSURF}/${DEM}.obj --tet --vtk --plane ${INWP}/${PLANE}.${FORMAT1}
 
