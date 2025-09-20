@@ -253,10 +253,11 @@ int main(int argc, char** argv)
 
     ValueArg<std::string> setOutFolder      ("", "outf", "Set folder to save outputs", false, "Directory", "string", cmd);
     ValueArg<int> setPrecision              ("", "prec", "Set precision", false, 6, "int" , cmd);
+    ValueArg<double> setTolerance              ("", "tol", "Set tolerance", false, 1e-02, "double" , cmd);
 
     // Tetgenerator - integration
-    ValueArg<std::string> xyzPlane("", "plane", "Plane", false, "plane", "string", cmd);
-    ValueArg<double> planeShift("", "plane-shift", "Plane shift", false, 0.0, "double", cmd);
+    ValueArg<std::string> xyzPlane          ("", "plane", "Plane", false, "plane", "string", cmd);
+    ValueArg<double> planeShift             ("", "plane-shift", "Plane shift", false, 0.0, "double", cmd);
 
 
 
@@ -567,12 +568,12 @@ int main(int argc, char** argv)
                                 }
 
                                 std::vector<Point3D> boundaries_unique, dataset_unique, data_combined;
-                                remove_duplicates_test_opt(boundaries[k], boundaries_unique);
+                                remove_duplicates_test_opt(boundaries[k], boundaries_unique, setTolerance.getValue());
 
                                 data_combined = boundaries_unique;
                                 if(k < datasets.size() && !datasets[k].empty())
                                 {
-                                    remove_duplicates_test_opt(datasets[k], dataset_unique);
+                                    remove_duplicates_test_opt(datasets[k], dataset_unique, setTolerance.getValue());
                                     data_combined.insert(data_combined.end(), dataset_unique.begin(), dataset_unique.end());
                                 }
 
@@ -663,7 +664,7 @@ int main(int argc, char** argv)
                         for(size_t k=0; k< datasets.size(); k++)
                         {
                             std::vector<Point3D> data;
-                            remove_duplicates_test_opt(datasets[k], data);
+                            remove_duplicates_test_opt(datasets[k], data, setTolerance.getValue());
                             applyRotation(data);
 
                             MUSE::SurfaceMeta::DataSummary dataSummary;
@@ -884,11 +885,11 @@ int main(int argc, char** argv)
                         if(boundaries[i].empty()) continue;
 
                         std::vector<Point3D> boundaries_unique, dataset_unique, data_combined;
-                        remove_duplicates_test_opt(boundaries[i], boundaries_unique);
+                        remove_duplicates_test_opt(boundaries[i], boundaries_unique, setTolerance.getValue());
 
                         data_combined = boundaries_unique;
                         if(i < datasets.size() && !datasets[i].empty()) {
-                            remove_duplicates_test_opt(datasets[i], dataset_unique);
+                            remove_duplicates_test_opt(datasets[i], dataset_unique, setTolerance.getValue());
                             data_combined.insert(data_combined.end(), dataset_unique.begin(), dataset_unique.end());
                         }
 
@@ -951,7 +952,7 @@ int main(int argc, char** argv)
                 for(size_t i=0; i< datasets.size(); i++)
                 {
                     std::vector<Point3D> data;
-                    remove_duplicates_test_opt(datasets[i], data);
+                    remove_duplicates_test_opt(datasets[i], data, setTolerance.getValue());
                     applyRotation(data);
 
                     MUSE::SurfaceMeta::DataSummary dataSummary;
@@ -1184,7 +1185,7 @@ int main(int argc, char** argv)
                         if(optFlag.isSet())
                             paramSurface.opt = paramSurface.opt + optFlag.getValue();
 
-                        remove_duplicates_test_opt(data, uniq_data);
+                        remove_duplicates_test_opt(data, uniq_data, setTolerance.getValue());
                         trimesh.clear();
                         trimesh = points_triangulation(uniq_data, paramSurface.opt);
                         remove_isolate_vertices(trimesh);
@@ -1538,7 +1539,7 @@ int main(int argc, char** argv)
             applyRotation(data);
             geometa.setDataRotation(dataRotation);
 
-            remove_duplicates_test_opt(data, uniq_data);
+            remove_duplicates_test_opt(data, uniq_data, setTolerance.getValue());
 
             if(proxThreshold.isSet() && setAxis.isSet())
             {
@@ -1560,23 +1561,23 @@ int main(int argc, char** argv)
                 std::vector<size_t> random_id(subSet.getValue());
                 for (size_t i = 0; i < subSet.getValue(); i++)
                 {
-                    random_id[i] = rand() % data.size();
+                    random_id[i] = rand() % uniq_data.size();
                     //std::cout << "rand ID: " << random_id[i] << std::endl;
                 }
 
                 std::sort(random_id.begin(), random_id.end());
                 random_id.erase(std::unique( random_id.begin(), random_id.end() ), random_id.end() );
 
-                std::vector<Point3D> data_rand=data;
-                data.clear();
+                std::vector<Point3D> data_rand=uniq_data;
+                uniq_data.clear();
                 for(int rid:random_id)
-                    data.push_back(data_rand.at(rid));
+                    uniq_data.push_back(data_rand.at(rid));
                 std::cout << "### Size of data vector (before random sampling): " << data_rand.size() << std::endl;
-                std::cout << "### New size of data vector (after random sampling): " << data.size() << std::endl;
+                std::cout << "### New size of data vector (after random sampling): " << uniq_data.size() << std::endl;
                 std::cout << std::endl;
 
                 std::string filename_rand = "_subset" + ext_txt;
-                export3d_xyz(out_surf + "/" + filename_rand, data);
+                export3d_xyz(out_surf + "/" + filename_rand, uniq_data);
             }
 
             if(triFlag.isSet())
@@ -1710,7 +1711,7 @@ int main(int argc, char** argv)
 
                     std::vector<Point3D> boundary, uniq_boundary;
                     load_xyzfile(setBoundary.getValue(), boundary);
-                    remove_duplicates_test_opt(boundary, uniq_boundary);
+                    remove_duplicates_test_opt(boundary, uniq_boundary, setTolerance.getValue());
 
                     applyRotation(uniq_boundary);
 
@@ -2489,13 +2490,32 @@ int main(int argc, char** argv)
             cinolib::Plane shifted_plane (ppoints);
 
             std::vector<uint> tbsplit;
+            std::cout << "=== Check on z value: consider only the tetrahedron cutted by the plane by comparing z coordinates." << std::endl;
             for (int pid = 0; pid <= tetmesh.num_polys()-1; pid++)
             {
-                uint v_up=0;
-                uint v_down=0;
+                double min_z = DBL_MAX;
+                double max_z = -DBL_MAX;
+
+                // Calcola la z min/max dei vertici del tet
+                for (uint v = 0; v < 4; ++v)
+                {
+                    double z = tetmesh.poly_vert(pid, v).z();
+                    if (z < min_z) min_z = z;
+                    if (z > max_z) max_z = z;
+                }
+                // Se il piano è completamente sopra o sotto il tet, salta
+                if (shifted_plane.p.z() < min_z || shifted_plane.p.z() > max_z)
+                {
+                    //std::cout << "=== The plane is out. Skip tet-pid = " << pid << std::endl;
+                    continue;
+                }
+
+                // Ora che sappiamo che lo attraversa, procedi con il test dettagliato
+                uint v_up = 0, v_down = 0;
 
                 for (uint v=0; v < 4; v++)
                 {
+                    // Proiezione del segmento lungo z! Generalizzabile ...
                     cinolib::vec3d c = tetmesh.poly_vert(pid, v);
                     cinolib::vec3d s0 = c; s0.z() = tetmesh.bbox().min.z();
                     cinolib::vec3d s1 = c; s1.z() = tetmesh.bbox().max.z();

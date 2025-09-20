@@ -190,48 +190,62 @@ void remove_duplicates_test(const std::vector<Point3D> &points, std::vector<Poin
 }
 
 
-void remove_duplicates_test_opt(const std::vector<Point3D> &points, std::vector<Point3D> &unique_points)
+void remove_duplicates_test_opt(const std::vector<Point3D> &points, std::vector<Point3D> &unique_points, const double &tol)
 {
-    std::cout << "### Starting vector dimension: " << points.size() << std::endl;  
+    std::cout << "### Starting vector size: " << points.size() << std::endl;
+
+    if (points.empty()) return;
+
     std::vector<Point3D> sorted_points = points;
 
+    //Assegnazione indice originale
     for(uint i=0; i<sorted_points.size(); i++)
         sorted_points.at(i).index = i;
 
-    unique_points = sorted_points;
-    std::deque<int> id_dupl;
-
+    // Ordina con la funzione di confronto decrescente con eps
     std::sort(sorted_points.begin(), sorted_points.end(), comparePoint);
 
+    //unique_points = sorted_points;
+    std::deque<int> id_dupl;
+
+    //Trova duplicati basati su distanza euclidea confrontando punti consecutivi
     for (uint i=1; i < sorted_points.size(); i++)
     {
-        if (dist3D(sorted_points.at(i-1), sorted_points.at(i)) <= 1e-6)
+        if (dist3D(sorted_points.at(i-1), sorted_points.at(i)) <= tol*tol) //distanza al quadrato
         {
             id_dupl.push_back(sorted_points.at(i).index);
             std::cout << "### Duplicated point at index: " << sorted_points.at(i).index << std::endl;
-            //std::cout << "### Duplicated point: " << sorted_points.at(i).x << "; " << sorted_points.at(i).y << "; " << sorted_points.at(i).z << std::endl;
         }
     }
     sorted_points.clear();
     std::cout << std::endl;
 
+    // Copia i punti originali con ordine originale
+    unique_points = points;
+
     std::sort(id_dupl.begin(), id_dupl.end(), std::greater<>());
-    //std::reverse(id_dupl.begin(), id_dupl.end());
 
-    while (!id_dupl.empty())
+    //Rimuovi i punti duplicati dai punti originali
+    for (int idx:id_dupl)
     {
-        //int curr = (points.size()-1) - id_dupl.front();
-        int curr = id_dupl.front();
-        std::cout << "### Removing point ID ---> " << curr << std::endl;
-        //std::cout << "### Removing point ---> " << unique_points.at(unique_points.begin()+curr). << "; " << unique_points.data()->y << "; " << unique_points.data()->z << "; " << unique_points.data()->index << std::endl;
-
-        id_dupl.pop_front();
-        unique_points.erase(unique_points.begin()+curr);
+        unique_points.erase(unique_points.begin() + static_cast<size_t>(idx));
+        std::cout << "### Removed point at ID ---> " << idx << std::endl;
     }
 
-    std::cout << std::endl;
-    std::cout << "Removing " << points.size() - unique_points.size() << " duplicated points ... COMPLETED." << std::endl;
+    // while (!id_dupl.empty())
+    // {
+    //     //int curr = (points.size()-1) - id_dupl.front();
+    //     int curr = id_dupl.front();
+    //     std::cout << "### Removing point ID ---> " << curr << std::endl;
+    //     //std::cout << "### Removing point ---> " << unique_points.at(unique_points.begin()+curr). << "; " << unique_points.data()->y << "; " << unique_points.data()->z << "; " << unique_points.data()->index << std::endl;
 
+    //     id_dupl.pop_front();
+    //     unique_points.erase(unique_points.begin()+curr);
+    // }
+
+    std::cout << std::endl;
+    std::cout << "### Removing " << points.size() - unique_points.size() << " duplicated points ... COMPLETED." << std::endl;
+    std::cout << "### Final vector size: " << unique_points.size() << std::endl;
 }
 
 
@@ -727,7 +741,7 @@ cinolib::Trimesh<> concavehull_triangulation (const std::vector<Point3D> &concav
 
 
 ///
-/// \brief constrained_triangulation2
+/// \brief constrained_triangulation2: points traingulation constrained to a boundary (memory optimization)
 /// \param boundary3d
 /// \param points
 /// \param opt
@@ -763,13 +777,17 @@ cinolib::Trimesh<> constrained_triangulation2 (const std::vector<Point3D> &bound
     std::cout << "### Computing boundary bbox ... COMPLETED." << std::endl;
     std::cout << "### Number of boundary points: " << boundary.size() << std::endl;
 
-    size_t max_boundary_pts = boundary.size();
-    size_t max_interior_pts = points.size(); ////////////////////////CONTINUARE
-    triangle_points_in.reserve(boundary.size() * 2);
-    segs_in.reserve(boundary.size() * 2);
-
     std::vector<uint> id_inpoints, id_boundary;
-    id_boundary.reserve(boundary.size());
+
+    // Pre-allocation for memory efficiency
+    size_t max_boundary_pts = boundary.size();
+    size_t max_interior_pts = points.size();
+
+    triangle_points_in.reserve(2 * (max_boundary_pts + max_interior_pts));
+    id_inpoints.reserve(max_interior_pts);
+    id_boundary.reserve(max_boundary_pts);
+    segs_in.reserve(2 * max_boundary_pts);
+
     for (size_t i=0; i < points.size(); i++)
     {
         Point2D pp;

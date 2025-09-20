@@ -37,7 +37,7 @@ double  dist         (MUSE::Point2D p0, MUSE::Point2D p1);
 double  sqrt_dist    (MUSE::Point2D p0, MUSE::Point2D p1);
 
 double  dist3D       (MUSE::Point3D p0, MUSE::Point3D p1);
-bool    comparePoint (MUSE::Point3D p0, MUSE::Point3D p1);
+bool    comparePoint (MUSE::Point3D p0, MUSE::Point3D p1); //, const double &eps = 1e-06);
 
 bool    equalPoint   (MUSE::Point3D p0, MUSE::Point3D p1);
 

@@ -26,12 +26,29 @@ double dist3D (MUSE::Point3D p0, MUSE::Point3D p1)
     return d;
 }
 
-bool comparePoint (MUSE::Point3D p0, MUSE::Point3D p1)
+///
+/// \brief comparePoint (robust implementation)
+/// \param p0
+/// \param p1
+/// \param eps
+/// \return
+///
+bool comparePoint (MUSE::Point3D p0, MUSE::Point3D p1) //, const double &eps)
 {
-    if (p0.x != p1.x)
+    const double eps = 1e-6;
+
+    // if (p0.x != p1.x)
+    //     return p0.x > p1.x;
+    // else if (p0.y != p1.y)
+    //     return  p0.y > p1.y;
+    // else
+    //     return p0.z > p1.z;
+
+    // //ORDINE DECRESCENTE
+    if (std::abs(p0.x - p1.x) > eps)
         return p0.x > p1.x;
-    else if (p0.y != p1.y)
-        return  p0.y > p1.y;
+    if (std::abs(p0.y - p1.y) > eps)
+        return p0.y > p1.y;
     else
         return p0.z > p1.z;
 }

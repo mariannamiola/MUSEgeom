@@ -15,7 +15,7 @@ using namespace MUSE;
 std::vector<Point3D> remove_sorted_duplicates   (const std::vector<Point3D> &points);
 //std::vector<Point3D> remove_points_duplicates   (std::vector<Point3D> &vec);
 void remove_duplicates_test(const std::vector<Point3D> &points, std::vector<Point3D> &unique_points, const double &tol = 1e-2);
-void remove_duplicates_test_opt(const std::vector<Point3D> &points, std::vector<Point3D> &unique_points);
+void remove_duplicates_test_opt(const std::vector<Point3D> &points, std::vector<Point3D> &unique_points, const double &tol = 1e-2);
 
 void remove_isolate_vertices                    (cinolib::Trimesh<> &mesh);
 void mesh_summary                               (cinolib::Trimesh<> &mesh);
