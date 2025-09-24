@@ -14,6 +14,10 @@ bool intersectPlaneSegment(const cinolib::Plane& plane, const cinolib::Segment& 
     cinolib::vec3d dir = segment.v[1] - segment.v[0]; // Segment direction
     double denom = plane.n.dot(dir);
 
+    //std::cout << "dir: " << dir << std::endl;
+    //std::cout << "denom: " << denom << std::endl;
+
+
     // Check if segment is parallel to the plane
     if (std::abs(denom) < 1e-6) {
         return false; // No intersection (parallel)

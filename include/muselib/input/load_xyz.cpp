@@ -25,7 +25,7 @@ int load1d_xyzfile (const std::string filename, std::vector<double> &points)
 {
     points.clear();
     std::ifstream file_in;
-    file_in.open(filename, std::fstream::out);
+    file_in.open(filename, std::fstream::in);
     if(!file_in.is_open())
     {
         std::cerr << "\033[0;31mError in file opening: " << filename << "\033[0m" << std::endl;
@@ -47,7 +47,7 @@ int load_xyzfile (const std::string filename, std::vector<Point3D> &points)
 {
     points.clear();
     std::ifstream file_in;
-    file_in.open(filename, std::fstream::out);
+    file_in.open(filename, std::fstream::in);
     if(!file_in.is_open())
     {
         std::cerr << "\033[0;31mError in file opening: " << filename << "\033[0m" << std::endl;
@@ -78,7 +78,7 @@ int load_xyzfile (const std::string filename, std::vector<double> &vecx, std::ve
     // vecz.clear();
 
     std::ifstream file_in;
-    file_in.open(filename, std::fstream::out);
+    file_in.open(filename, std::fstream::in);
     if(!file_in.is_open())
     {
         std::cerr << "\033[0;31mError in file opening: " << filename << "\033[0m" << std::endl;

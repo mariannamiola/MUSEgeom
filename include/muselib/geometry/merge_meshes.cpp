@@ -44,42 +44,88 @@ void merge_meshes(const MUSE::SurfaceMesh<M,V,E,P> &mesh0, const MUSE::SurfaceMe
     }
 }
 
-// template<class M, class V, class E, class P>
-// void merge_meshes_at_coincident_vertices(const MUSE::SurfaceMesh<M,V,E,P> &mesh0, const MUSE::SurfaceMesh<M,V,E,P> &mesh1, MUSE::SurfaceMesh<M,V,E,P> &mesh_merge)
-// {
-//     cinolib::Octree octree;
-//     octree.build_from_mesh_points(mesh0); //reference mesh
 
-//     mesh_merge = mesh0;
+///
+/// \brief force_boundary_match_with_normal_check
+/// \param mesh0
+/// \param mesh1
+/// \param tol
+///
+template<class M, class V, class E, class P>
+void force_boundary_match_with_normal_check(MUSE::SurfaceMesh<M,V,E,P> &mesh0, MUSE::SurfaceMesh<M,V,E,P> &mesh1, const double &tol)
+{
+    auto bverts0 = mesh0.get_ordered_boundary_vertices();
+    auto bverts1 = mesh1.get_ordered_boundary_vertices();
 
-//     std::map<uint,uint> vmap;
-//     for(uint vid=0; vid<mesh1.num_verts(); ++vid)
-//     {
-//         cinolib::vec3d p = mesh1.vert(vid);
+    if (bverts0.size() != bverts1.size())
+    {
+        std::cerr << "=== ERROR: The boundary vertex counts do not match!" << std::endl;
+        exit(0);
+    }
 
-//         std::unordered_set<uint> ids;
-//         if(octree.contains(p, false, ids))
-//         {
-//             // WARNING: I am assuming that the mapping is one to one at most
-//             assert(ids.size()==1);
-//             vmap[vid] = *ids.begin();
-//         }
-//         else
-//         {
-//             uint fresh_id = mesh_merge.vert_add(p);
-//             vmap[vid] = fresh_id;
-//         }
-//     }
+    // Controlla se l'ordine dei bordi è opposto
+    bool reversed = true;
+    for (size_t i = 0; i < bverts0.size(); ++i)
+    {
+        double d_fwd = mesh0.vert(bverts0[i]).dist(mesh1.vert(bverts1[i]));
+        double d_rev = mesh0.vert(bverts0[i]).dist(mesh1.vert(bverts1[bverts1.size() - 1 - i]));
 
-//     for(uint pid=0; pid<mesh1.num_polys(); ++pid)
-//     {
-//         auto p = mesh1.poly_verts_id(pid);
+        //double d_fwd = (mesh0.vert(bverts0[i]) - mesh1.vert(bverts1[i])).length();
+        //double d_rev = (mesh0.vert(bverts0[i]) - mesh1.vert(bverts1[bverts1.size() - 1 - i])).length();
 
-//         for(auto & vid : p)
-//             vid = vmap.at(vid);
+        if (d_fwd < tol)
+        {
+            reversed = false;
+            break;
+        }
+        else if (d_rev < tol)
+        {
+            reversed = true;
+            break;
+        }
+    }
 
-//         int test_id = mesh_merge.poly_id(p);
-//         if(test_id<0)
-//             mesh_merge.poly_add(p);
-//     }
-// }
+    // Inverti l'ordine dei vertici se necessario
+    if (reversed)
+    {
+        std::reverse(bverts1.begin(), bverts1.end());
+        std::cout << "=== Boundary order reversed to match the main mesh." << std::endl;
+    }
+
+    // Forza i vertici del bordo di meshB a coincidere con quelli di meshA
+    for (size_t i = 0; i < bverts0.size(); ++i)
+    {
+        mesh1.vert(bverts1[i]) = mesh0.vert(bverts0[i]);
+    }
+
+    std::cout << "=== Boundary vertices forced to match." << std::endl;
+
+    // === CONTROLLA LE NORMALI ===
+    mesh0.update_p_normals();
+    mesh1.update_p_normals();
+
+    std::vector<cinolib::vec3d> normals0 = mesh0.vector_poly_normals();
+    std::vector<cinolib::vec3d> normals1 = mesh1.vector_poly_normals();
+
+    uint pid0 = mesh0.adj_v2p(bverts0[0])[0];
+    uint pid1 = mesh1.adj_v2p(bverts1[0])[0];
+
+
+    cinolib::vec3d n0 = normals0.at(pid0);
+    cinolib::vec3d n1 = normals1.at(pid1);
+
+    // Confronta l’orientamento
+    if (n0.dot(n1) < 0.0)
+    {
+        std::cout << "=== Normals are opposite. Flipping additional mesh ..." << std::endl;
+
+        for(uint pid=0; pid<mesh1.num_polys(); pid++)
+            mesh1.poly_flip_winding_order(pid);
+
+        mesh1.update_p_normals();
+    }
+    else
+    {
+        std::cout << "=== Normals are compatible." << std::endl;
+    }
+}

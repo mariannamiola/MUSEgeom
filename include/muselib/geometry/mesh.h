@@ -1,8 +1,6 @@
 #ifndef MESH_H
 #define MESH_H
 
-#include <iostream>
-
 #include "muselib/data_structures/point.h"
 
 #include <cinolib/triangle_wrap.h>
@@ -12,10 +10,15 @@
 using namespace MUSE;
 
 
+bool is_supported_surface_format                (const std::string& ext);
+bool is_supported_volume_format                 (const std::string& ext);
+
+std::vector<double> serialized_from_point2d     (const std::vector<Point2D> &points);
+std::vector<double> serialized_from_point3d     (const std::vector<Point3D> &points);
+
+
 std::vector<Point3D> remove_sorted_duplicates   (const std::vector<Point3D> &points);
-//std::vector<Point3D> remove_points_duplicates   (std::vector<Point3D> &vec);
-void remove_duplicates_test(const std::vector<Point3D> &points, std::vector<Point3D> &unique_points, const double &tol = 1e-2);
-void remove_duplicates_test_opt(const std::vector<Point3D> &points, std::vector<Point3D> &unique_points, const double &tol = 1e-2);
+void remove_duplicates_test_opt                 (const std::vector<Point3D> &points, std::vector<Point3D> &unique_points, const double &tol = 1e-2);
 
 void remove_isolate_vertices                    (cinolib::Trimesh<> &mesh);
 void mesh_summary                               (cinolib::Trimesh<> &mesh);

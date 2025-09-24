@@ -12,6 +12,30 @@
 
 using namespace MUSE;
 
+
+///
+/// \brief is_supported_surface_format
+/// \param ext
+/// \return
+///
+bool is_supported_surface_format(const std::string& ext)
+{
+    static const std::unordered_set<std::string> supported = {".off", ".obj"};
+    return supported.count(ext) > 0;
+}
+
+///
+/// \brief is_supported_volume_format
+/// \param ext
+/// \return
+///
+bool is_supported_volume_format(const std::string& ext)
+{
+    static const std::unordered_set<std::string> supported = {".mesh", ".vtk"};
+    return supported.count(ext) > 0;
+}
+
+
 std::vector<double> serialized_from_point2d (const std::vector<Point2D> &points)
 {
     std::vector<double> serialized_points;
@@ -32,6 +56,7 @@ std::vector<double> serialized_from_point3d (const std::vector<Point3D> &points)
         //serializzazione dei punti da Point3D a xy
         serialized_points.push_back(points.at(i).x);
         serialized_points.push_back(points.at(i).y);
+        serialized_points.push_back(points.at(i).z);
     }
     return serialized_points;
 }
@@ -165,29 +190,29 @@ std::vector<Point3D> remove_sorted_duplicates (const std::vector<Point3D> &point
 //}
 
 
-void remove_duplicates_test(const std::vector<Point3D> &points, std::vector<Point3D> &unique_points, const double &tol)
-{
-    unique_points.push_back(points.at(0));
+// void remove_duplicates_test(const std::vector<Point3D> &points, std::vector<Point3D> &unique_points, const double &tol)
+// {
+//     unique_points.push_back(points.at(0));
 
-    for(uint i=1; i<points.size(); i++)
-    {
-        bool is_unique = true;
-        for(uint j=0; j< unique_points.size(); j++)
-        {
-            double d = dist3D(points.at(i), unique_points.at(j));
+//     for(uint i=1; i<points.size(); i++)
+//     {
+//         bool is_unique = true;
+//         for(uint j=0; j< unique_points.size(); j++)
+//         {
+//             double d = dist3D(points.at(i), unique_points.at(j));
 
-            if(d < tol)
-            {
-                is_unique = false;
-                break;
-            }
+//             if(d < tol)
+//             {
+//                 is_unique = false;
+//                 break;
+//             }
 
-        }
-        if(is_unique)
-            unique_points.push_back(points.at(i));
-    }
-    std::cout << "Removing " << points.size()-unique_points.size() << " duplicated points ... COMPLETED." << std::endl;
-}
+//         }
+//         if(is_unique)
+//             unique_points.push_back(points.at(i));
+//     }
+//     std::cout << "Removing " << points.size()-unique_points.size() << " duplicated points ... COMPLETED." << std::endl;
+// }
 
 
 void remove_duplicates_test_opt(const std::vector<Point3D> &points, std::vector<Point3D> &unique_points, const double &tol)
@@ -1614,114 +1639,6 @@ bool vert_merge (cinolib::Trimesh<> mesh, const uint vid0, const uint vid1)
 
     return true;
 }
-
-
-//void triangles_split_on_centroid (cinolib::Trimesh<> &mesh)
-//{
-//    uint n_polys = mesh.num_polys();
-//    for(uint pid=0; pid < n_polys; pid++)
-//        mesh.poly_split(pid);
-//}
-
-//void triangles_split_on_edge (cinolib::Trimesh<> &mesh)
-//{
-//    uint n_verts = mesh.num_verts();
-//    for(uint eid=0; eid<mesh.num_edges();eid++)
-//    {
-//        cinolib::vec3d v0 = mesh.edge_vert(eid, 0);
-//        cinolib::vec3d v1 = mesh.edge_vert(eid, 1);
-//        cinolib::vec3d delta = (v1-v0)/2;
-
-//        cinolib::vec3d v_med (v0.x()+delta.x(), v0.y()+delta.y(), v0.z()+delta.z());
-//        mesh.vert_add(v_med);
-//    }
-//    //std::cout << "N. ORIGINALE VERTICI: " << n_verts << std::endl;
-//    //std::cout << "N. VERTICI POST: " << mesh.num_verts() << std::endl;
-
-//    uint n_polys = mesh.num_polys();
-//    for(uint pid=0; pid < n_polys; pid++)
-//    {
-//        uint vid0 = mesh.poly_vert_id(pid, 0);
-//        uint vid1 = mesh.poly_vert_id(pid, 1);
-//        uint vid2 = mesh.poly_vert_id(pid, 2);
-
-//        uint new0 = mesh.poly_edge_id(pid, 0) + n_verts;
-//        uint new1 = mesh.poly_edge_id(pid, 1) + n_verts;
-//        uint new2 = mesh.poly_edge_id(pid, 2) + n_verts;
-
-//        uint new_pid;
-//        new_pid = mesh.poly_add(vid0, new0, new2);
-//        mesh.poly_data(new_pid) = mesh.poly_data(pid);
-
-//        new_pid = mesh.poly_add(new0, vid1, new1);
-//        mesh.poly_data(new_pid) = mesh.poly_data(pid);
-
-//        new_pid = mesh.poly_add(new2, new1, vid2);
-//        mesh.poly_data(new_pid) = mesh.poly_data(pid);
-
-//        new_pid = mesh.poly_add(new0, new1, new2);
-//        mesh.poly_data(new_pid) = mesh.poly_data(pid);
-
-//        mesh.poly_remove(pid);
-//    }
-//}
-
-
-//void quads_split_on_edge (cinolib::Quadmesh<> &mesh)
-//{
-//    uint n_verts = mesh.num_verts();
-//    for(uint eid=0; eid<mesh.num_edges();eid++)
-//    {
-//        cinolib::vec3d v0 = mesh.edge_vert(eid, 0);
-//        cinolib::vec3d v1 = mesh.edge_vert(eid, 1);
-//        cinolib::vec3d delta = (v1-v0)/2;
-
-//        cinolib::vec3d v_med (v0.x()+delta.x(), v0.y()+delta.y(), v0.z()+delta.z());
-//        mesh.vert_add(v_med);
-//    }
-//    //std::cout << "N. ORIGINALE VERTICI: " << n_verts << std::endl;
-//    //std::cout << "N. VERTICI POST: " << mesh.num_verts() << std::endl;
-
-//    uint n_polys = mesh.num_polys();
-//    for(uint pid=0; pid < n_polys; pid++)
-//    {
-//        uint centr = mesh.vert_add(mesh.poly_centroid(pid));
-
-//        uint vid0 = mesh.poly_vert_id(pid, 0);
-//        uint vid1 = mesh.poly_vert_id(pid, 1);
-//        uint vid2 = mesh.poly_vert_id(pid, 2);
-//        uint vid3 = mesh.poly_vert_id(pid, 3);
-
-//        std::vector<uint> pid_adj_edge = mesh.adj_p2e(pid);
-
-//        uint new0 = pid_adj_edge.at(0) + n_verts;
-//        uint new1 = pid_adj_edge.at(1) + n_verts;
-//        uint new2 = pid_adj_edge.at(2) + n_verts;
-//        uint new3 = pid_adj_edge.at(3) + n_verts;
-
-//        std::vector<uint> list0 {vid0, new0, centr, new3};
-//        std::vector<uint> list1 {new0, vid1, new1, centr};
-//        std::vector<uint> list2 {centr, new1, vid2, new2};
-//        std::vector<uint> list3 {new3, centr, new2, vid3};
-
-
-//        uint new_pid;
-//        new_pid = mesh.poly_add(list0);
-//        mesh.poly_data(new_pid) = mesh.poly_data(pid);
-
-//        new_pid = mesh.poly_add(list1);
-//        mesh.poly_data(new_pid) = mesh.poly_data(pid);
-
-//        new_pid = mesh.poly_add(list2);
-//        mesh.poly_data(new_pid) = mesh.poly_data(pid);
-
-//        new_pid = mesh.poly_add(list3);
-//        mesh.poly_data(new_pid) = mesh.poly_data(pid);
-
-//        mesh.poly_remove(pid);
-//    }
-//}
-
 
 
 
