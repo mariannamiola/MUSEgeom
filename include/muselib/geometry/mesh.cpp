@@ -56,7 +56,6 @@ std::vector<double> serialized_from_point3d (const std::vector<Point3D> &points)
         //serializzazione dei punti da Point3D a xy
         serialized_points.push_back(points.at(i).x);
         serialized_points.push_back(points.at(i).y);
-        serialized_points.push_back(points.at(i).z);
     }
     return serialized_points;
 }
@@ -319,7 +318,7 @@ cinolib::Trimesh<> points_triangulation (const std::vector<Point3D> &points, std
 
     // Run triangulation by exploting Triangle Library in Cinolib and create a triangle mesh (m_tri)
     cinolib::Trimesh<> trimesh;
-    triangle_wrap(serialized_points, {}, {}, 0, opt, trimesh);
+    triangle_wrap(serialized_points, {}, {}, 0.0, opt, trimesh);
 
     // Vertices in the generated mesh have Z=0
     // Restore original Z coordinate

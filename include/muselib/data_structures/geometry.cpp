@@ -2,6 +2,9 @@
 
 void setGeometryType (MUSE::GeospatialData &geometry, std::string &GDALtype)
 {
+    if(GDALtype.compare("MULTIPOLYGON") == 0)
+        geometry.geom_type = MULTI;
+
     if(GDALtype.compare("POLYGON") == 0)
         geometry.geom_type = POLYGON;
 

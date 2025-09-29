@@ -260,6 +260,8 @@ int main(int argc, char** argv)
     ValueArg<double> planeShift             ("", "plane-shift", "Plane shift", false, 0.0, "double", cmd);
 
 
+    SwitchArg setPerturbation               ("", "perturb", "Set perturbation", cmd, false); //booleano
+
 
 
     /// Help
@@ -809,6 +811,103 @@ int main(int argc, char** argv)
                 continue;
             }
 
+            // if(!boundaries.empty())
+            // {
+            //     // std::cout << "TRASLAZIONEEEEEEEEEEEEEE" << std::endl;
+            //     // double bbox_xmax = -DBL_MAX;
+            //     // double bbox_ymax = -DBL_MAX;
+            //     // double bbox_xmin = DBL_MAX;
+            //     // double bbox_ymin = DBL_MAX;
+            //     // for(size_t i=0; i< boundaries.at(0).size(); i++)
+            //     // {
+            //     //     if(boundaries.at(0).at(i).x > bbox_xmax)
+            //     //         bbox_xmax = boundaries.at(0).at(i).x;
+
+            //     //     if(boundaries.at(0).at(i).y > bbox_ymax)
+            //     //         bbox_ymax = boundaries.at(0).at(i).y;
+
+            //     //     if(boundaries.at(0).at(i).x < bbox_xmin)
+            //     //         bbox_xmin = boundaries.at(0).at(i).x;
+
+            //     //     if(boundaries.at(0).at(i).y < bbox_ymin)
+            //     //         bbox_ymin = boundaries.at(0).at(i).y;
+            //     // }
+            //     // std::cout << "max_x = " << bbox_xmax << "; min_x = " << bbox_xmin << std::endl;
+            //     // std::cout << "max_y = " << bbox_ymax << "; min_y = " << bbox_ymin << std::endl;
+
+            //     // double deltax = (bbox_xmax - bbox_xmin)*0.5;
+            //     // double deltay = (bbox_ymax - bbox_ymin)*0.5;
+
+            //     // std::cout << deltax << std::endl;
+
+            //     // for(size_t i=0; i< boundaries.at(0).size(); i++)
+            //     // {
+            //     //     boundaries.at(0).at(i).x -= deltax;
+            //     //     boundaries.at(0).at(i).y -= deltay;
+
+            //     //     std::cout << boundaries.at(0).at(i).x << std::endl;
+            //     // }
+            //     std::cout << "TRASLAZIONE VERSO IL CENTROIDE" << std::endl;
+
+            //     double sum_x = 0.0;
+            //     double sum_y = 0.0;
+            //     size_t num_points = boundaries.at(0).size();
+
+            //     // Calcolo della somma delle coordinate
+            //     for (size_t i = 0; i < num_points; ++i)
+            //     {
+            //         sum_x += boundaries.at(0).at(i).x;
+            //         sum_y += boundaries.at(0).at(i).y;
+            //     }
+
+            //     // Centroide = media delle coordinate
+            //     double centroid_x = sum_x / num_points;
+            //     double centroid_y = sum_y / num_points;
+
+            //     std::cout << "Centroide: (" << centroid_x << ", " << centroid_y << ")" << std::endl;
+
+            //     // Traslazione dei punti verso il centroide (centratura sull'origine)
+            //     for (size_t i = 0; i < num_points; ++i)
+            //     {
+            //         boundaries.at(0).at(i).x -= centroid_x;
+            //         boundaries.at(0).at(i).y -= centroid_y;
+            //     }
+            // }
+
+            // if(!datasets.empty())
+            // {
+            //     double bbox_xmax = -DBL_MAX;
+            //     double bbox_ymax = -DBL_MAX;
+            //     double bbox_xmin = DBL_MAX;
+            //     double bbox_ymin = DBL_MAX;
+            //     for(size_t i=0; i< datasets.size(); i++)
+            //     {
+            //         if(datasets.at(0).at(i).x > bbox_xmax)
+            //             bbox_xmax = datasets.at(0).at(i).x;
+
+            //         if(datasets.at(0).at(i).y > bbox_ymax)
+            //             bbox_ymax = datasets.at(0).at(i).y;
+
+            //         if(datasets.at(0).at(i).x < bbox_xmin)
+            //             bbox_xmin = datasets.at(0).at(i).x;
+
+            //         if(datasets.at(0).at(i).y < bbox_ymin)
+            //             bbox_ymin = datasets.at(0).at(i).y;
+            //     }
+            //     std::cout << "max_x = " << bbox_xmax << "; min_x = " << bbox_xmin << std::endl;
+            //     std::cout << "max_y = " << bbox_ymax << "; min_y = " << bbox_ymin << std::endl;
+
+            //     double deltax = bbox_xmax - bbox_xmin;
+            //     double deltay = bbox_ymax - bbox_ymin;
+
+            //     for(size_t i=0; i< datasets.at(0).size(); i++)
+            //     {
+            //         datasets.at(0).at(i).x += deltax;
+            //         datasets.at(0).at(i).y += deltay;
+            //     }
+            // }
+
+
             // Export
             if(setSaveAttributesTable.isSet())
             {
@@ -929,6 +1028,22 @@ int main(int argc, char** argv)
 
                             trimesh.save(out_mesh.c_str());
                             std::cout << "\033[0;32mSaved: " << out_mesh << "\033[0m" << std::endl;
+                        }
+                        else if(gridFlag.isSet())
+                        {
+                            MUSE::Surface Surface;
+
+                            MUSE::Surface::Parameters paramSurface;
+                            paramSurface.type = "QUADMESH";
+                            paramSurface.resx = setResx.getValue();
+                            paramSurface.resy = setResy.getValue();
+                            paramSurface.resz = 0.0;
+
+                            MUSE::Quadmesh<> quadmesh(setResx.getValue(), setResy.getValue(), setNewZ.getValue(), boundaries_unique);
+                            quadmesh.save(out_mesh.c_str());
+                            Surface.setSummary(quadmesh);
+
+                            std::cout << "\033[0;32m=== Saved: " << out_mesh << "\033[0m" << std::endl;
                         }
 
                         geometa.setGeospatialData(Geometry);
@@ -1161,16 +1276,51 @@ int main(int argc, char** argv)
                         data.push_back(p);
                     }
                 }
+                // std::cout << data.at(0).x << "; " << data.at(0).y << "; " << data.at(0).z <<std::endl;
+                // std::cout << data.at(1).x << "; " << data.at(1).y << "; " << data.at(1).z <<std::endl;
                 MUSE::SurfaceMeta::DataSummary dataSummary;
                 dataSummary.setDataSummary(data);
                 geometa.setDataSummary(dataSummary);
                 std::cout << "=== Extract coordinates of pixel centroids ... COMPLETED." << std::endl;
                 std::cout << std::endl;
 
+
+                ///
+                /// Computing bbox data and traslate at the center
+                ///
+                std::vector<cinolib::vec3d> data_for_bbox;
+                for(size_t di=0; di < data.size(); di++)
+                    data_for_bbox.push_back(cinolib::vec3d({data.at(di).x, data.at(di).y, data.at(di).z}));
+                cinolib::AABB aabb (data_for_bbox);
+                data_for_bbox.clear();
+
+                data_for_bbox.push_back(cinolib::vec3d({aabb.min.x(), aabb.min.y(), aabb.min.z()}));
+                data_for_bbox.push_back(cinolib::vec3d({aabb.max.x(), aabb.min.y(), aabb.min.z()}));
+                data_for_bbox.push_back(cinolib::vec3d({aabb.max.x(), aabb.max.y(), aabb.min.z()}));
+                data_for_bbox.push_back(cinolib::vec3d({aabb.min.x(), aabb.max.y(), aabb.min.z()}));
+                data_for_bbox.push_back(cinolib::vec3d({aabb.min.x(), aabb.min.y(), aabb.max.z()}));
+                data_for_bbox.push_back(cinolib::vec3d({aabb.max.x(), aabb.min.y(), aabb.max.z()}));
+                data_for_bbox.push_back(cinolib::vec3d({aabb.max.x(), aabb.max.y(), aabb.max.z()}));
+                data_for_bbox.push_back(cinolib::vec3d({aabb.min.x(), aabb.max.y(), aabb.max.z()}));
+                std::cout << "=== Computing best plane on points bounding box | vector size: " << data_for_bbox.size() << std::endl;
+
+                cinolib::vec3d center (aabb.min.x() + aabb.delta_x()/2.0, aabb.min.y() + aabb.delta_y()/2.0, aabb.min.z() + aabb.delta_z()/2.0);
+                std::cout << "=== Center bbox data: " << center.x() << "; " << center.y() << "; " << center.z() << std::endl;
+
+                for(auto &point:data)
+                {
+                    point.x -= center.x();
+                    point.y -= center.y();
+                    point.z -= center.z();
+                }
+
+                ///
+                /// Starting meshing
+                ///
                 if(triFlag.isSet())
                 {
                     cinolib::Trimesh<> trimesh;
-                    trimesh.clear();
+
 
                     // FOR JSON ...
                     paramSurface.type = "TRIMESH";
@@ -1197,7 +1347,9 @@ int main(int argc, char** argv)
                     else if(concaveFlag.isSet())
                     {
                         // 1. Calcolo il convex hull e lo trasformo in int da uint
+                        trimesh.clear();
                         trimesh = points_triangulation(data, "c");
+
                         std::vector<int> convexhull;
                         std::vector<unsigned int> convex_uint = trimesh.get_ordered_boundary_vertices();
                         // for(unsigned int idx : convex_uint)
@@ -1282,24 +1434,45 @@ int main(int argc, char** argv)
                     Surface.setSummary(trimesh);
 
                     std::string out_mesh = out_rast + "/" + get_basename(Geometry.getName()) + ext_surf;
+
+                    trimesh.translate(center);
                     trimesh.save(out_mesh.c_str());
                 }
                 else if(gridFlag.isSet())
                 {
                     paramSurface.type = "QUADMESH";
-                    paramSurface.resx = XSizePixel;
-                    paramSurface.resy = YSizePixel;
+                    // paramSurface.resx = XSizePixel;
+                    // paramSurface.resy = YSizePixel;
+
+                    paramSurface.resx = setResx.isSet() ? setResx.getValue() : XSizePixel;
+                    paramSurface.resy = setResy.isSet() ? setResy.getValue() : YSizePixel;
                     paramSurface.resz = 0.0;
 
-                    //MUSE::Quadmesh<> quadmesh(nYSize-1, nXSize-1, XSizePixel, YSizePixel, XOrigin, YOrigin);
-                    MUSE::Quadmesh<> quadmesh(nYSize-1, nXSize-1, XSizePixel, YSizePixel, XOrigin, YOrigin, grid);
-
                     std::string out_mesh = out_rast + "/" + get_basename(Geometry.getName()) + ext_surf;
-                    quadmesh.save(out_mesh.c_str());
+                    std::vector<std::vector<float>> downsampled_grid;
+                    if(setResx.isSet() && setResy.isSet())
+                    {
+                        float corrected_XOrigin = XOrigin;
+                        float corrected_YOrigin = YOrigin;
+
+                        if((setResx.getValue() > XSizePixel) && (setResy.getValue() > YSizePixel))
+                            downsampled_grid = resample_elevation_grid(grid, XSizePixel, YSizePixel, setResx.getValue(), setResy.getValue(), XOrigin, YOrigin, corrected_XOrigin, corrected_YOrigin);
+
+                        uint rows = downsampled_grid.size() - 1;
+                        uint cols = downsampled_grid[0].size() - 1;
+
+                        MUSE::Quadmesh<> quadmesh(rows, cols, paramSurface.resx, paramSurface.resy, corrected_XOrigin, corrected_YOrigin, downsampled_grid);
+                        quadmesh.save(out_mesh.c_str());
+                        Surface.setSummary(quadmesh);
+                    }
+                    else
+                    {
+                        MUSE::Quadmesh<> quadmesh(nYSize-1, nXSize-1, XSizePixel, YSizePixel, XOrigin, YOrigin, grid);
+                        quadmesh.save(out_mesh.c_str());
+                        Surface.setSummary(quadmesh);
+                    }
 
                     Surface.setParameters(paramSurface);
-                    Surface.setSummary(quadmesh);
-
                     std::cout << "\033[0;32m=== Saved quadmesh: " << out_mesh << "\033[0m" << std::endl;
                 }
 
@@ -1318,20 +1491,27 @@ int main(int argc, char** argv)
     ///
     if(loadPointCloud.isSet())
     {
-        // Check on input files (.txt, .dat)
-        if(filesystem::is_empty(in_geometry))
+        // // Check on input files (.txt, .dat)
+        // if (!setPoints.isSet() && !setPolygon.isSet()) {
+        //     if(filesystem::is_empty(in_geometry))
+        //     {
+        //         std::cerr << "\033[0;31mInput ERROR: Insert file into: " << in_geometry << "\033[0m" << std::endl;
+        //         exit(1);
+        //     }
+
+        //     std::vector<std::string> file_list = get_xyzfiles(in_geometry);
+        //     if (file_list.empty())
+        //     {
+        //         std::cerr << "\033[0;31mInput ERROR: NO datafile (.txt, .dat, .xyz) in the folder"<< in_geometry << "\033[0m" << std::endl;
+        //         exit(1);
+        //     }
+        // }
+
+        if(!setPoints.isSet() && !setPolygon.isSet())
         {
-            std::cerr << "\033[0;31mInput ERROR: Insert file into: " << in_geometry << "\033[0m" << std::endl;
+            std::cout << FRED("ERROR: Set --points <filename> or --polygon <filename>.") << std::endl;
             exit(1);
         }
-
-        std::vector<std::string> file_list = get_xyzfiles(in_geometry);
-        if (file_list.empty())
-        {
-            std::cerr << "\033[0;31mInput ERROR: NO datafile (.txt, .dat, .xyz) in the folder"<< in_geometry << "\033[0m" << std::endl;
-            exit(1);
-        }
-
 
         if(triFlag.isSet() || gridFlag.isSet())
         {
@@ -1354,11 +1534,6 @@ int main(int argc, char** argv)
         excommands.push_back(command);
         geometa.setCommands(excommands);
 
-        if(!setPoints.isSet() && !setPolygon.isSet())
-        {
-            std::cout << FRED("ERROR: Set --points <filename> or --polygon <filename>.") << std::endl;
-            exit(1);
-        }
 
         //apro i file con la specifica della geometria (NO LOADING AUTOMATICO!!)
         //perchè per le point cloud non ho la possibilità di definire da qualche parte il tipo (come in gdal)
@@ -1411,7 +1586,7 @@ int main(int argc, char** argv)
         {
         case POLYGON:
         {
-            std::vector<Point3D> boundary;
+            std::vector<Point3D> boundary, boundary_tmp;
             load_xyzfile(setPolygon.getValue(), boundary);
 
             if(boundary.size() == 0)
@@ -1420,6 +1595,64 @@ int main(int argc, char** argv)
                 exit(1);
             }
 
+            ///Check plane orientation
+            ///
+            align_points_to_xyplane(boundary);
+            // std::vector<cinolib::vec3d> data_for_plane;
+            // for(size_t di=0; di < boundary.size(); di++)
+            //     data_for_plane.push_back(cinolib::vec3d({boundary.at(di).x, boundary.at(di).y, boundary.at(di).z}));
+
+            // cinolib::AABB aabb (data_for_plane);
+            // data_for_plane.clear();
+
+            // data_for_plane.push_back(cinolib::vec3d({aabb.min.x(), aabb.min.y(), aabb.min.z()}));
+            // data_for_plane.push_back(cinolib::vec3d({aabb.max.x(), aabb.min.y(), aabb.min.z()}));
+            // data_for_plane.push_back(cinolib::vec3d({aabb.max.x(), aabb.max.y(), aabb.min.z()}));
+            // data_for_plane.push_back(cinolib::vec3d({aabb.min.x(), aabb.max.y(), aabb.min.z()}));
+            // data_for_plane.push_back(cinolib::vec3d({aabb.min.x(), aabb.min.y(), aabb.max.z()}));
+            // data_for_plane.push_back(cinolib::vec3d({aabb.max.x(), aabb.min.y(), aabb.max.z()}));
+            // data_for_plane.push_back(cinolib::vec3d({aabb.max.x(), aabb.max.y(), aabb.max.z()}));
+            // data_for_plane.push_back(cinolib::vec3d({aabb.min.x(), aabb.max.y(), aabb.max.z()}));
+            // std::cout << "=== Computing best plane on points bounding box | vector size: " << data_for_plane.size() << std::endl;
+
+            // cinolib::Plane plane (data_for_plane);
+            // std::cout << "=== Plane | normal: " << plane.n << std::endl;
+            // cinolib::vec3d normal_xy (0,0,1);
+            // if(plane.n.dist(normal_xy) > setTolerance.getValue())
+            // {
+            //     //std::cout << plane.n.dist(normal_xy) << std::endl;
+            //     std::cout << "=== Rotating points on x-y plane ..." << std::endl;
+
+            //     /// Computing rotation axis
+            //     cinolib::vec3d rot_axis = plane.n.cross(normal_xy);
+
+            //     /// Computing angle between two normals
+            //     plane.n /= plane.n.norm();
+            //     normal_xy /= normal_xy.norm();
+
+            //     double dot = plane.n.dot(normal_xy);
+            //     double angle_rad = std::acos(dot);
+            //     double angle_deg = angle_rad * 180.0 / M_PI;
+            //     std::cout << "=== Rotation axis: " << rot_axis << std::endl;
+            //     std::cout << "dot = " << dot << std::endl;
+            //     std::cout << "rad_angle = " << angle_rad << " rad | angle degree = " << angle_deg << std::endl;
+
+            //     cinolib::vec3d center (aabb.delta_x()/2.0, aabb.delta_y()/2.0, aabb.delta_z()/2.0);
+            //     std::cout << "center: " <<center.x() << "; " << center.y() << "; " << center.z() << std::endl;
+
+            //     rot_axis /= rot_axis.norm();
+            //     for(auto& point : boundary)
+            //     {
+            //         std::cout << "originale: " <<point.x << "; " << point.y << "; " << point.z << std::endl;
+            //         cinolib::vec3d sample(point.x, point.y, point.z);
+
+            //         sample = point_rotation(sample, rot_axis, angle_deg, center);
+            //         point.x = sample.x();
+            //         point.y = sample.y();
+            //         point.z = sample.z();
+            //         std::cout << "ruotato: " <<point.x << "; " << point.y << "; " << point.z << std::endl;
+            //     }
+            // }
 
             MUSE::SurfaceMeta::DataSummary dataSummary;
             dataSummary.setDataSummary(boundary);
@@ -1583,7 +1816,6 @@ int main(int argc, char** argv)
             if(triFlag.isSet())
             {
                 cinolib::Trimesh<> trimesh;
-                trimesh.clear();
 
                 //FOR JSON ...
                 paramSurface.type = "TRIMESH";
@@ -2808,6 +3040,18 @@ int main(int argc, char** argv)
                 }
                 export3d_xyz(out_surf + "/"+ get_basename(get_filename(filename_mesh)) + "_BP" + ext_txt, vec_bv);
             }
+
+            if(setPerturbation.isSet())
+            {
+                std::srand(static_cast<unsigned int>(std::time(nullptr)));
+
+                for(uint vid=0; vid < mesh.num_verts(); vid++)
+                {
+                    float perturbation = static_cast<float>(1000 + (std::rand() % 1001));
+                    std::cout << "pertubazione z vertice: " << perturbation << std::endl;
+                    mesh.vert(vid).z() += perturbation;
+                }
+            }
         }
         else if(type == MeshType::QUADMESH)
         {
@@ -2844,6 +3088,7 @@ int main(int argc, char** argv)
         std::string suffix;
         if(splitMethod.isSet()) suffix += "_res";
         if(setRotAxis.isSet()) suffix += "_rot";
+        if(setPerturbation) suffix += "_perturb";
         if(setScaleMesh.isSet())
         {
             mesh.scale(setScaleFactorX, setScaleFactorY, setScaleFactorZ);
@@ -2851,7 +3096,7 @@ int main(int argc, char** argv)
         }
 
         //std::string out_mesh = get_filename(filename_mesh);
-        std::string final_out = get_filename(filename_mesh) + suffix + ext_surf;
+        std::string final_out = get_basename(filename_mesh) + suffix + ext_surf;
         mesh.save(final_out.c_str());
         std::cout << "\033[0;32mSaving mesh file: " << final_out << "\033[0m" << std::endl;
 

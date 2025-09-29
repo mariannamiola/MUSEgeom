@@ -3,7 +3,7 @@
 set -e	#exit if an error occours
 
 export EXE=MUSEgeom_geom
-export PROJECT_NAME=02_MontePisano
+export PROJECT_NAME=05_Section
 
 # 0. Export paths
 #######################################################################
@@ -25,14 +25,12 @@ export WP=${WORK_DIR}/${PROJECT_NAME}
 
 
 # 1. Set input data
-export INPUT=dtm_clip
-export FORMAT=tif
-export USINPUT=usoSuolo_clip
-export FORMAT1=gpkg
+export SECTION=sec_xz
+export FORMAT=xyz
+
 export INWP=${WP}/in
 mkdir -p ${INWP}
-cp ${DATA_SOURCE}/${INPUT}.${FORMAT} ${INWP}/${INPUT}.${FORMAT}
-#cp ${DATA_SOURCE}/${USINPUT}.${FORMAT1} ${INWP}/${USINPUT}.${FORMAT1}
+cp ${DATA_SOURCE}/${SECTION}.* ${INWP}
 
 #######################################################################
 
@@ -40,11 +38,6 @@ cp ${DATA_SOURCE}/${INPUT}.${FORMAT} ${INWP}/${INPUT}.${FORMAT}
 
 # 2. Set flags
 #######################################################################
-export RESX=100
-export RESY=100
-export RESZ=0
-
-
 
 
 
@@ -60,17 +53,7 @@ echo "
                		"
 export OUTSURF=${WP}/out/surf
 
-##Reading raster file and surface modeling
-${EXE} -R -p ${WP} --tri --obj --convex
 
-#${EXE} -V -p ${WP} --poly --obj
 
-##Surface offset
-#${EXE} -O -p ${WP} -m ${OUTSURF}/${INPUT}.obj --delta -z 1000 --obj
-
-##Lateral closure of the two surfaces
-#${EXE} -T -p ${WP} -m ${OUTSURF}/${INPUT}.obj -m ${OUTSURF}/${INPUT}_dz.obj --obj
-
-##Tetrahedral meshing
-#${EXE} -M -p ${WP} -m ${OUTSURF}/${INPUT}-${INPUT}_dz.obj --vtk --tet
-#${EXE} -M -p ${WP} -m ${OUTSURF}/${INPUT}-${INPUT}_dz.obj --vtk --hex --resx 100 --resy 100 --resz 100
+##########  GEOMETRY  ###########
+${EXE} -P -p ${WP} --polygon ${INWP}/${SECTION}.${FORMAT} --tri --obj --rot

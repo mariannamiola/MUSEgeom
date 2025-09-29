@@ -7,6 +7,8 @@
 #include <deque>
 #include <tuple>
 
+#include <cinolib/geometry/aabb.h>
+#include <cinolib/geometry/plane.h>
 
 bool check_index (const std::vector<int> &id_dupl, int index)
 {
@@ -242,6 +244,14 @@ void point_rotation (const double &x, const double &y, const double &z, const ci
 }
 
 
+///
+/// \brief point_rotation
+/// \param point
+/// \param rot_axis
+/// \param rot_angle (in degree)
+/// \param rot_center
+/// \return
+///
 cinolib::vec3d point_rotation (cinolib::vec3d &point, const cinolib::vec3d &rot_axis, const double &rot_angle, const cinolib::vec3d &rot_center) //angle in degree
 {
     double rad = (rot_angle * M_PI)/180;
@@ -271,7 +281,144 @@ std::vector<cinolib::vec3d> points_rotation (std::vector<cinolib::vec3d> &points
     return points;
 }
 
+///
+/// \brief align_points_to_xyplane
+/// \param points
+///
+void align_points_to_xyplane (std::vector<Point3D> &points, const double tol = 1e-02)
+{
+    std::vector<cinolib::vec3d> data_for_plane;
+    for(size_t di=0; di < points.size(); di++)
+        data_for_plane.push_back(cinolib::vec3d({points.at(di).x, points.at(di).y, points.at(di).z}));
+
+    cinolib::AABB aabb (data_for_plane);
+    data_for_plane.clear();
+
+    data_for_plane.push_back(cinolib::vec3d({aabb.min.x(), aabb.min.y(), aabb.min.z()}));
+    data_for_plane.push_back(cinolib::vec3d({aabb.max.x(), aabb.min.y(), aabb.min.z()}));
+    data_for_plane.push_back(cinolib::vec3d({aabb.max.x(), aabb.max.y(), aabb.min.z()}));
+    data_for_plane.push_back(cinolib::vec3d({aabb.min.x(), aabb.max.y(), aabb.min.z()}));
+    data_for_plane.push_back(cinolib::vec3d({aabb.min.x(), aabb.min.y(), aabb.max.z()}));
+    data_for_plane.push_back(cinolib::vec3d({aabb.max.x(), aabb.min.y(), aabb.max.z()}));
+    data_for_plane.push_back(cinolib::vec3d({aabb.max.x(), aabb.max.y(), aabb.max.z()}));
+    data_for_plane.push_back(cinolib::vec3d({aabb.min.x(), aabb.max.y(), aabb.max.z()}));
+    std::cout << "=== Computing best plane on points bounding box | vector size: " << data_for_plane.size() << std::endl;
+
+
+    cinolib::Plane plane (data_for_plane);
+    std::cout << "=== Plane | normal: " << plane.n << std::endl;
+    cinolib::vec3d normal_xy (0,0,1);
+
+    if(plane.n.dist(normal_xy) > tol)
+    {
+        //std::cout << plane.n.dist(normal_xy) << std::endl;
+        std::cout << "=== Rotating points on x-y plane ..." << std::endl;
+
+        /// Computing rotation axis
+        cinolib::vec3d rot_axis = plane.n.cross(normal_xy);
+
+        /// Computing angle between two normals
+        plane.n /= plane.n.norm();
+        normal_xy /= normal_xy.norm();
+
+        double dot = plane.n.dot(normal_xy);
+        double angle_rad = std::acos(dot);
+        double angle_deg = angle_rad * 180.0 / M_PI;
+        std::cout << "=== Rotation axis: " << rot_axis << std::endl;
+        //std::cout << "dot = " << dot << std::endl;
+        std::cout << "=== Rotation angle = " << angle_rad << " rad | " << angle_deg << " degree" << std::endl;
+
+        cinolib::AABB aabb (data_for_plane);
+        cinolib::vec3d center (aabb.delta_x()/2.0, aabb.delta_y()/2.0, aabb.delta_z()/2.0);
+        std::cout << "=== Rotation center: " <<center.x() << "; " << center.y() << "; " << center.z() << std::endl;
+
+        rot_axis /= rot_axis.norm();
+        for(auto& point : points)
+        {
+            std::cout << "=== Original point: " <<point.x << "; " << point.y << "; " << point.z << std::endl;
+            cinolib::vec3d sample(point.x, point.y, point.z);
+
+            sample = point_rotation(sample, rot_axis, angle_deg, center);
+            point.x = sample.x();
+            point.y = sample.y();
+            point.z = sample.z();
+            std::cout << "=== Rotate point: " <<point.x << "; " << point.y << "; " << point.z << std::endl;
+        }
+    }
+}
+
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+///
+/// \brief resample_elevation_grid
+/// \param elevation
+/// \param current_res_x
+/// \param current_res_y
+/// \param res_target_x
+/// \param res_target_y
+/// \return
+///
+std::vector<std::vector<float>> resample_elevation_grid(const std::vector<std::vector<float>>& elevation,
+                                                        float current_res_x, float current_res_y, float res_target_x, float res_target_y, float XOrigin,
+                                                        float YOrigin, float corrected_XOrigin, float corrected_YOrigin)
+{
+    // Calcola i fattori di downsampling (quante celle originali in una nuova)
+    int factor_x = static_cast<int>(std::floor(res_target_x / std::abs(current_res_x)));
+    int factor_y = static_cast<int>(std::floor(res_target_y / std::abs(current_res_y)));
+
+    if (factor_x <= 0 || factor_y <= 0)
+    {
+        throw std::runtime_error("Invalid resample factor: must be > 0");
+    }
+
+    const int original_rows = elevation.size();
+    const int original_cols = elevation[0].size();
+
+    const int new_rows = original_rows / factor_y;
+    const int new_cols = original_cols / factor_x;
+
+    std::vector<std::vector<float>> downscaled;
+
+    for (int r = 0; r < new_rows; ++r)
+    {
+        std::vector<float> row;
+        for (int c = 0; c < new_cols; ++c)
+        {
+            float sum = 0.0f;
+            int count = 0;
+
+            for (int dy = 0; dy < factor_y; ++dy)
+            {
+                for (int dx = 0; dx < factor_x; ++dx)
+                {
+                    int orig_r = r * factor_y + dy;
+                    int orig_c = c * factor_x + dx;
+
+                    if (orig_r < original_rows && orig_c < original_cols)
+                    {
+                        sum += elevation[orig_r][orig_c];
+                        ++count;
+                    }
+                }
+            }
+
+            float avg = (count > 0) ? (sum / count) : 0.0f;
+            row.push_back(avg);
+        }
+        downscaled.push_back(row);
+    }
+
+    // Calcolo nuova origine centrata sui blocchi
+    corrected_XOrigin = XOrigin + (factor_x * current_res_x) / 2.0f;
+    corrected_YOrigin = YOrigin + (factor_y * current_res_y) / 2.0f;
+
+    std::cout << "=== Resampling factor: X = " << factor_x << ", Y = " << factor_y << std::endl;
+    std::cout << "=== Original size: " << elevation.size() << "x" << elevation[0].size() << std::endl;
+    std::cout << "=== New size: " << downscaled.size() << "x" << downscaled[0].size() << std::endl;
+    std::cout << "=== New Origin: " << corrected_XOrigin << ", " << corrected_YOrigin << std::endl;
+
+    return downscaled;
+}
 
 
 // std::vector<std::vector<std::tuple<double, double>>> buffered_points(const std::vector<std::vector<std::tuple<double, double>>>& poly_list, double distance = 1000)
