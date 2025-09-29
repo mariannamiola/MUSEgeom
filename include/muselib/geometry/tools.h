@@ -47,7 +47,7 @@ void align_points_to_xyplane                    (std::vector<Point3D> &points, c
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
 
-std::vector<std::vector<float>> resample_elevation_grid(const std::vector<std::vector<float>>& elevation, float current_res_x, float current_res_y, float res_target_x, float res_target_y, float XOrigin, float YOrigin, float corrected_XOrigin, float corrected_YOrigin);
+std::vector<std::vector<float>> resample_elevation_grid(const std::vector<std::vector<float>>& elevation, float current_res_x, float current_res_y, float res_target_x, float res_target_y, float XOrigin, float YOrigin, float &corrected_XOrigin, float &corrected_YOrigin);
 
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::

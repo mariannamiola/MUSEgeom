@@ -1461,7 +1461,7 @@ int main(int argc, char** argv)
                         uint rows = downsampled_grid.size() - 1;
                         uint cols = downsampled_grid[0].size() - 1;
 
-                        MUSE::Quadmesh<> quadmesh(rows, cols, paramSurface.resx, paramSurface.resy, corrected_XOrigin, corrected_YOrigin, downsampled_grid);
+                        MUSE::Quadmesh<> quadmesh(rows, cols, setResx.getValue(), setResy.getValue(), corrected_XOrigin, corrected_YOrigin, downsampled_grid);
                         quadmesh.save(out_mesh.c_str());
                         Surface.setSummary(quadmesh);
                     }

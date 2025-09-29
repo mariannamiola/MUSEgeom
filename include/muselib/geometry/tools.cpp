@@ -360,9 +360,10 @@ void align_points_to_xyplane (std::vector<Point3D> &points, const double tol = 1
 ///
 std::vector<std::vector<float>> resample_elevation_grid(const std::vector<std::vector<float>>& elevation,
                                                         float current_res_x, float current_res_y, float res_target_x, float res_target_y, float XOrigin,
-                                                        float YOrigin, float corrected_XOrigin, float corrected_YOrigin)
+                                                        float YOrigin, float &corrected_XOrigin, float &corrected_YOrigin)
 {
-    // Calcola i fattori di downsampling (quante celle originali in una nuova)
+    // Calcola i fattori di downsampling (quante celle originali cadono in una nuova:
+    //risoluzione originale 1m -> risoluzione target 5m -> fattore 5)
     int factor_x = static_cast<int>(std::floor(res_target_x / std::abs(current_res_x)));
     int factor_y = static_cast<int>(std::floor(res_target_y / std::abs(current_res_y)));
 
@@ -379,6 +380,7 @@ std::vector<std::vector<float>> resample_elevation_grid(const std::vector<std::v
 
     std::vector<std::vector<float>> downscaled;
 
+    //Downsampling tramite media dei valori delle celle
     for (int r = 0; r < new_rows; ++r)
     {
         std::vector<float> row;
@@ -408,9 +410,19 @@ std::vector<std::vector<float>> resample_elevation_grid(const std::vector<std::v
         downscaled.push_back(row);
     }
 
-    // Calcolo nuova origine centrata sui blocchi
-    corrected_XOrigin = XOrigin + (factor_x * current_res_x) / 2.0f;
-    corrected_YOrigin = YOrigin + (factor_y * current_res_y) / 2.0f;
+    // // Calcolo nuova origine centrata sui blocchi
+    // corrected_XOrigin = XOrigin + (factor_x * current_res_x) / 2.0f;
+    // corrected_YOrigin = YOrigin + (factor_y * current_res_y) / 2.0f;
+
+    // Dimensioni totali delle due griglie
+    float original_width = original_cols * current_res_x;
+    float original_height = original_rows * current_res_y;
+    float new_width = new_cols * res_target_x;
+    float new_height = new_rows * res_target_y;
+
+    // Sposta la nuova origine in modo che il centro resti lo stesso
+    corrected_XOrigin = XOrigin + (original_width - new_width) / 2.0f;
+    corrected_YOrigin = YOrigin + (original_height - new_height) / 2.0f;
 
     std::cout << "=== Resampling factor: X = " << factor_x << ", Y = " << factor_y << std::endl;
     std::cout << "=== Original size: " << elevation.size() << "x" << elevation[0].size() << std::endl;
