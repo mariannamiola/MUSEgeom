@@ -261,6 +261,7 @@ int main(int argc, char** argv)
 
 
     SwitchArg setPerturbation               ("", "perturb", "Set perturbation", cmd, false); //booleano
+    SwitchArg setPointManipulation          ("", "manip", "Set mnipulation", cmd, false); //booleano
 
 
 
@@ -1455,6 +1456,7 @@ int main(int argc, char** argv)
                         float corrected_XOrigin = XOrigin;
                         float corrected_YOrigin = YOrigin;
 
+                        /// DIREZIONE DA CONTROLLARE!!!!!!!! TO DO!
                         if((setResx.getValue() > XSizePixel) && (setResy.getValue() > YSizePixel))
                             downsampled_grid = resample_elevation_grid(grid, XSizePixel, YSizePixel, setResx.getValue(), setResy.getValue(), XOrigin, YOrigin, corrected_XOrigin, corrected_YOrigin);
 
@@ -1598,61 +1600,6 @@ int main(int argc, char** argv)
             ///Check plane orientation
             ///
             align_points_to_xyplane(boundary);
-            // std::vector<cinolib::vec3d> data_for_plane;
-            // for(size_t di=0; di < boundary.size(); di++)
-            //     data_for_plane.push_back(cinolib::vec3d({boundary.at(di).x, boundary.at(di).y, boundary.at(di).z}));
-
-            // cinolib::AABB aabb (data_for_plane);
-            // data_for_plane.clear();
-
-            // data_for_plane.push_back(cinolib::vec3d({aabb.min.x(), aabb.min.y(), aabb.min.z()}));
-            // data_for_plane.push_back(cinolib::vec3d({aabb.max.x(), aabb.min.y(), aabb.min.z()}));
-            // data_for_plane.push_back(cinolib::vec3d({aabb.max.x(), aabb.max.y(), aabb.min.z()}));
-            // data_for_plane.push_back(cinolib::vec3d({aabb.min.x(), aabb.max.y(), aabb.min.z()}));
-            // data_for_plane.push_back(cinolib::vec3d({aabb.min.x(), aabb.min.y(), aabb.max.z()}));
-            // data_for_plane.push_back(cinolib::vec3d({aabb.max.x(), aabb.min.y(), aabb.max.z()}));
-            // data_for_plane.push_back(cinolib::vec3d({aabb.max.x(), aabb.max.y(), aabb.max.z()}));
-            // data_for_plane.push_back(cinolib::vec3d({aabb.min.x(), aabb.max.y(), aabb.max.z()}));
-            // std::cout << "=== Computing best plane on points bounding box | vector size: " << data_for_plane.size() << std::endl;
-
-            // cinolib::Plane plane (data_for_plane);
-            // std::cout << "=== Plane | normal: " << plane.n << std::endl;
-            // cinolib::vec3d normal_xy (0,0,1);
-            // if(plane.n.dist(normal_xy) > setTolerance.getValue())
-            // {
-            //     //std::cout << plane.n.dist(normal_xy) << std::endl;
-            //     std::cout << "=== Rotating points on x-y plane ..." << std::endl;
-
-            //     /// Computing rotation axis
-            //     cinolib::vec3d rot_axis = plane.n.cross(normal_xy);
-
-            //     /// Computing angle between two normals
-            //     plane.n /= plane.n.norm();
-            //     normal_xy /= normal_xy.norm();
-
-            //     double dot = plane.n.dot(normal_xy);
-            //     double angle_rad = std::acos(dot);
-            //     double angle_deg = angle_rad * 180.0 / M_PI;
-            //     std::cout << "=== Rotation axis: " << rot_axis << std::endl;
-            //     std::cout << "dot = " << dot << std::endl;
-            //     std::cout << "rad_angle = " << angle_rad << " rad | angle degree = " << angle_deg << std::endl;
-
-            //     cinolib::vec3d center (aabb.delta_x()/2.0, aabb.delta_y()/2.0, aabb.delta_z()/2.0);
-            //     std::cout << "center: " <<center.x() << "; " << center.y() << "; " << center.z() << std::endl;
-
-            //     rot_axis /= rot_axis.norm();
-            //     for(auto& point : boundary)
-            //     {
-            //         std::cout << "originale: " <<point.x << "; " << point.y << "; " << point.z << std::endl;
-            //         cinolib::vec3d sample(point.x, point.y, point.z);
-
-            //         sample = point_rotation(sample, rot_axis, angle_deg, center);
-            //         point.x = sample.x();
-            //         point.y = sample.y();
-            //         point.z = sample.z();
-            //         std::cout << "ruotato: " <<point.x << "; " << point.y << "; " << point.z << std::endl;
-            //     }
-            // }
 
             MUSE::SurfaceMeta::DataSummary dataSummary;
             dataSummary.setDataSummary(boundary);
@@ -1812,6 +1759,100 @@ int main(int argc, char** argv)
                 std::string filename_rand = "_subset" + ext_txt;
                 export3d_xyz(out_surf + "/" + filename_rand, uniq_data);
             }
+
+            /// Questa sezione permette di manipolare un set di dati:
+            /// dopo aver caricato una nuvola di punti e sottoposta ad eventuale filtro,
+            /// creo un piano passante per quei punti
+            /// carico una serie di punti di bordo e li proietto sul piano
+            /// salvo il dataset + il bordo proiettato sul piano
+            if(setPointManipulation.isSet() && setBoundary.isSet())
+            {
+                double plane_min_z = DBL_MAX;
+                std::vector<cinolib::vec3d> points, bpoints, bverts_proj;
+
+                for(auto pd:uniq_data)
+                {
+                    cinolib::vec3d cp (pd.x, pd.y, pd.z);
+                    points.push_back(cp);
+
+                    if(cp.z() < plane_min_z)
+                        plane_min_z = cp.z();
+                }
+
+                std::cout << "plane_min_z: " << plane_min_z << std::endl;
+
+                std::cout << "Size vector uniq_data: " << uniq_data.size() << std::endl;
+                std::cout << "Size vector points: " << points.size() << std::endl;
+                std::cout << "=== Point manipulation tools is set." << std::endl;
+
+                cinolib::Plane plane_frompoints (points);
+
+                std::ifstream pboundary;
+                pboundary.open(setBoundary.getValue());
+
+                double x,y,z;
+                while (pboundary >> x >> y >> z)
+                {
+                    bpoints.push_back(cinolib::vec3d(x,y,z));
+                }
+
+                std::cout << "=== Reading dataset from file: " << setBoundary.getValue() << " COMPLETED." << std::endl;
+                std::cout << "Size vector new dataset: " << bpoints.size() << std::endl;
+
+                //Funzione di proiezione ortogonale su un piano
+                    auto projectPointOntoPlane = [](const cinolib::vec3d &P, const cinolib::Plane &plane) -> cinolib::vec3d
+                {
+                    cinolib::vec3d diff = P - plane.p;
+                    double dist = plane.n.dot(diff);
+                    return P - dist * plane.n;
+                };
+
+                // Proietta ogni punto del bordo sul piano
+                for (const auto &pvid : bpoints)
+                {
+                    cinolib::vec3d projected = projectPointOntoPlane(pvid, plane_frompoints);
+                    bverts_proj.push_back(projected);
+                }
+
+                // for (auto pvid : bpoints)
+                // {
+                //     cinolib::vec3d intersection;
+                //     cinolib::vec3d p2 = pvid;
+                //     p2.z() = plane_min_z;
+
+                //     cinolib::Segment segm (0, pvid, p2);
+                //     //std::cout << "p2: " << p2 << std::endl;
+
+                //     //std::cout << "pvid: " << pvid << std::endl;
+
+                //     if (!intersectPlaneSegment(plane_frompoints, segm, intersection)) //.vert(vid));
+                //     {
+                //         std::cerr << "=== ERROR: No intersection is found!" << std::endl;
+                //         std::cout << intersection << std::endl;
+                //     }
+                //     else
+                //         bverts_proj.push_back(intersection);
+
+                // }
+
+                std::cout << "Size vector points intersection: " << bverts_proj.size() << std::endl;
+                std::cout << std::endl;
+
+                for(auto pnew:bverts_proj)
+                    points.push_back(pnew);
+
+                std::cout << "Size vector points and intersections: " << points.size() << std::endl;
+
+                std::string filename_new = "_newset" + ext_txt;
+
+                std::ofstream file_out;
+                file_out.open(out_surf + "/" + filename_new, std::fstream::out);
+
+                for(size_t i=0; i<points.size(); i++)
+                    file_out << std::fixed << std::setprecision(setPrecision.getValue()) << points.at(i).x() << " " << points.at(i).y() << " " << points.at(i).z() << std::endl;
+                file_out.close();
+            }
+
 
             if(triFlag.isSet())
             {

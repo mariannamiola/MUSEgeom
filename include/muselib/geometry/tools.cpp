@@ -422,7 +422,12 @@ std::vector<std::vector<float>> resample_elevation_grid(const std::vector<std::v
 
     // Sposta la nuova origine in modo che il centro resti lo stesso
     corrected_XOrigin = XOrigin + (original_width - new_width) / 2.0f;
-    corrected_YOrigin = YOrigin + (original_height - new_height) / 2.0f;
+    //corrected_YOrigin = YOrigin + (original_height - new_height) / 2.0f;
+    corrected_YOrigin = YOrigin + ((original_height - new_height) / 2.0f) * (current_res_y < 0 ? -1.0f : 1.0f);
+
+    // Se invece preferisci avere l'origine in basso a sinistra (come nei GIS):
+    std::reverse(downscaled.begin(), downscaled.end());
+    //corrected_YOrigin = YOrigin + ((original_height - new_height) / 2.0f);  // solo se current_res_y > 0
 
     std::cout << "=== Resampling factor: X = " << factor_x << ", Y = " << factor_y << std::endl;
     std::cout << "=== Original size: " << elevation.size() << "x" << elevation[0].size() << std::endl;

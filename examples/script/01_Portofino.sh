@@ -43,7 +43,7 @@ cp ${DATA_SOURCE}/${BATIM}.* ${INWP}
 
 # 2. Set flags
 #######################################################################
-export OPT=a100
+export OPT=a1000
 
 
 # 3. Starting script ...
@@ -62,8 +62,10 @@ export OUTSURF=${WP}/out/surf
 ${EXE} -V -p ${WP} --save --xyz --tri --obj --opt ${OPT}
 mv ${OUTSURF}/${BOUNDARY}_0@${FORMAT0}.xyz ${OUTSURF}/${BOUNDARY}.xyz
 
-##Reading batimetry as point cloud
+##Reading batimetry as point cloud with z-value filtering
 ${EXE} -P -p ${WP} --points ${INWP}/${BATIM}.${FORMAT1} --axis Z --thresh 0.0 --boundary ${OUTSURF}/${BOUNDARY}.xyz --tri --obj
+
+-P -p /home/mariannamiola/Devel/MUSEgeom/examples/run/01_Portofino --boundary /home/mariannamiola/Devel/MUSEgeom/examples/run/01_Portofino/out/surf/AOI.xyz --points /home/mariannamiola/Devel/MUSEgeom/examples/run/01_Portofino/in/portofino_batimetria_LR_clean.xyz --manip --axis Z --thresh 0.0 --tri --obj --csv
 
 ##Surface offset
 #${EXE} -O -p ${WP} -m ${OUTSURF}/${BATIM}.obj --abs -z 0.0 --obj
