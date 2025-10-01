@@ -37,6 +37,7 @@
 #include <cinolib/tetgen_wrap.h>
 #include <cinolib/voxelize.h>
 #include <cinolib/voxel_grid_to_hexmesh.h>
+#include <cinolib/remesh_BotschKobbelt2004.h>
 
 #include <concaveman.h>
 // https://adared.ch/concaveman-cpp-a-very-fast-2d-concave-hull-maybe-even-faster-with-c-and-python/
@@ -253,7 +254,7 @@ int main(int argc, char** argv)
 
     ValueArg<std::string> setOutFolder      ("", "outf", "Set folder to save outputs", false, "Directory", "string", cmd);
     ValueArg<int> setPrecision              ("", "prec", "Set precision", false, 6, "int" , cmd);
-    ValueArg<double> setTolerance              ("", "tol", "Set tolerance", false, 1e-02, "double" , cmd);
+    ValueArg<double> setTolerance           ("", "tol", "Set tolerance", false, 1e-02, "double" , cmd);
 
     // Tetgenerator - integration
     ValueArg<std::string> xyzPlane          ("", "plane", "Plane", false, "plane", "string", cmd);
@@ -1767,52 +1768,40 @@ int main(int argc, char** argv)
             /// salvo il dataset + il bordo proiettato sul piano
             if(setPointManipulation.isSet() && setBoundary.isSet())
             {
+                std::cout << "=== Starting point manipulation ... "<< std::endl;
                 double plane_min_z = DBL_MAX;
-                std::vector<cinolib::vec3d> points, bpoints, bverts_proj;
+                double plane_max_z = -DBL_MAX;
 
+                std::vector<cinolib::vec3d> points, bpoints, bverts_proj;
                 for(auto pd:uniq_data)
                 {
                     cinolib::vec3d cp (pd.x, pd.y, pd.z);
                     points.push_back(cp);
 
-                    if(cp.z() < plane_min_z)
-                        plane_min_z = cp.z();
+                    if(cp.z() < plane_min_z) plane_min_z = cp.z();
+                    if(cp.z() > plane_max_z) plane_max_z = cp.z();
                 }
 
                 std::cout << "plane_min_z: " << plane_min_z << std::endl;
+                std::cout << std::fixed << std::setprecision(setPrecision.getValue()) << "plane_max_z: " << plane_max_z << std::endl;
 
                 std::cout << "Size vector uniq_data: " << uniq_data.size() << std::endl;
                 std::cout << "Size vector points: " << points.size() << std::endl;
                 std::cout << "=== Point manipulation tools is set." << std::endl;
 
                 cinolib::Plane plane_frompoints (points);
-
                 std::ifstream pboundary;
                 pboundary.open(setBoundary.getValue());
 
                 double x,y,z;
                 while (pboundary >> x >> y >> z)
-                {
                     bpoints.push_back(cinolib::vec3d(x,y,z));
-                }
 
                 std::cout << "=== Reading dataset from file: " << setBoundary.getValue() << " COMPLETED." << std::endl;
                 std::cout << "Size vector new dataset: " << bpoints.size() << std::endl;
 
-                //Funzione di proiezione ortogonale su un piano
-                    auto projectPointOntoPlane = [](const cinolib::vec3d &P, const cinolib::Plane &plane) -> cinolib::vec3d
-                {
-                    cinolib::vec3d diff = P - plane.p;
-                    double dist = plane.n.dot(diff);
-                    return P - dist * plane.n;
-                };
-
                 // Proietta ogni punto del bordo sul piano
-                for (const auto &pvid : bpoints)
-                {
-                    cinolib::vec3d projected = projectPointOntoPlane(pvid, plane_frompoints);
-                    bverts_proj.push_back(projected);
-                }
+                int last_best_idx = 0;
 
                 // for (auto pvid : bpoints)
                 // {
@@ -1821,21 +1810,39 @@ int main(int argc, char** argv)
                 //     p2.z() = plane_min_z;
 
                 //     cinolib::Segment segm (0, pvid, p2);
-                //     //std::cout << "p2: " << p2 << std::endl;
-
-                //     //std::cout << "pvid: " << pvid << std::endl;
+                //     std::cout << "p2: " << p2 << std::endl;
+                //     std::cout << "pvid: " << pvid << std::endl;
 
                 //     if (!intersectPlaneSegment(plane_frompoints, segm, intersection)) //.vert(vid));
                 //     {
-                //         std::cerr << "=== ERROR: No intersection is found!" << std::endl;
-                //         std::cout << intersection << std::endl;
+                //         std::cout << FRED("=== ERROR: No intersection is found! ") << intersection << std::endl;
+                //         continue;
                 //     }
-                //     else
-                //         bverts_proj.push_back(intersection);
+                //     //std::cout << "FOUND INTERSECTION: " << intersection << std::endl;
+                //     // Usa il region growing
+                //     last_best_idx = find_nearest_in_local_region(intersection, points, last_best_idx, 20);
+                //     double z = points[last_best_idx].z();
 
+                //     cinolib::vec3d adjusted(intersection.x(), intersection.y(), z);
+                //     bverts_proj.push_back(adjusted);
                 // }
+                // std::cout << "Size vector points intersection: " << bverts_proj.size() << std::endl;
+
+
+                for (const auto &pvid : bpoints)
+                {
+                    cinolib::vec3d projected = projectPointOntoPlane(pvid, plane_frompoints);
+
+                    // Usa il region growing
+                    last_best_idx = find_nearest_in_local_region(projected, points, last_best_idx, 20);
+                    double z = points[last_best_idx].z();
+                    cinolib::vec3d adjusted(projected.x(), projected.y(), z);
+
+                    bverts_proj.push_back(adjusted);
+                }
 
                 std::cout << "Size vector points intersection: " << bverts_proj.size() << std::endl;
+
                 std::cout << std::endl;
 
                 for(auto pnew:bverts_proj)
@@ -1844,12 +1851,12 @@ int main(int argc, char** argv)
                 std::cout << "Size vector points and intersections: " << points.size() << std::endl;
 
                 std::string filename_new = "_newset" + ext_txt;
-
                 std::ofstream file_out;
                 file_out.open(out_surf + "/" + filename_new, std::fstream::out);
 
                 for(size_t i=0; i<points.size(); i++)
                     file_out << std::fixed << std::setprecision(setPrecision.getValue()) << points.at(i).x() << " " << points.at(i).y() << " " << points.at(i).z() << std::endl;
+
                 file_out.close();
             }
 
@@ -3190,7 +3197,8 @@ int main(int argc, char** argv)
 
                 if(!trimesh0.check_lateral_closing() && !trimesh1.check_lateral_closing())
                 {
-                    merge_meshes(trimesh0, trimesh1, trimesh);
+                    merge_and_wrap_meshes_old(trimesh0, trimesh1, trimesh);
+                    //merge_meshes(trimesh0, trimesh1, trimesh);
                     std::cout << "Meshes merge on boundary ... COMPLETED." << std::endl;
                 }
                 else if(trimesh0.check_lateral_closing() && trimesh1.check_lateral_closing())
@@ -3289,6 +3297,378 @@ int main(int argc, char** argv)
             std::cerr << "ERROR: Mesh format is not supported." << std::endl;
             exit(1);
         }
+    }
+
+    if(gridData.isSet())
+    {
+        std::vector<std::string> excommands;
+        excommands.push_back(command);
+
+        std::vector<Point3D> boundary;
+        if(setBBPoints.isSet())
+        {
+            std::vector<std::string> bbpoints = setBBPoints.getValue();
+
+            for(uint i=0; i< bbpoints.size(); i++)
+                std::cout << "BBPOINTS: " << bbpoints.at(i) << std::endl;
+            std::cout << std::endl;
+
+            for(uint i=0; i< bbpoints.size(); i++)
+            {
+                std::vector<std::string> direc = split_string(bbpoints.at(i), ',');
+
+                Point3D p0;
+                p0.x = std::stod(direc.at(0));
+                p0.y = std::stod(direc.at(1));
+                p0.z = std::stod(direc.at(2));
+                boundary.push_back(p0);
+            }
+        }
+        else
+        {
+            std::cout << FRED("ERROR. Set --bbp boundary points to extract mesh from grid.") << std::endl;
+            exit(1);
+        }
+
+        //TO DOOOOOOOOOOOOOOOOOO: CONTROLLARE FUNZIONE DI ROTAZIONE PUNTI!!!
+        if(setRotAxis.isSet())
+        {
+            std::vector<Point3D> boundary_tmp = boundary;
+            boundary.clear();
+            for(size_t i=0; i<boundary_tmp.size(); i++)
+            {
+                Point3D p_rot = rotPoint(boundary_tmp.at(i), setRotAxis.getValue(), setRotAngle.getValue());
+                boundary.push_back(p_rot);
+            }
+        }
+
+        if(gridFlag.isSet())
+        {
+            if(!filesystem::exists(out_surf))
+                filesystem::create_directory(out_surf);
+
+            MUSE::SurfaceMeta geometa;
+            geometa.setProject(Project);
+            geometa.setCommands(excommands);
+
+            MUSE::Quadmesh<> quadmesh (setResx.getValue(), setResy.getValue(), setNewZ.getValue(), boundary);
+
+            std::string out_mesh = out_surf + "/grid" + ext_surf;
+
+            quadmesh.save(out_mesh.c_str());
+
+            MUSE::Surface summary;
+            MUSE::Surface::Parameters par;
+            par.resx = setResx.getValue();
+            par.resy = setResy.getValue();
+            summary.setParameters(par);
+            summary.setSummary(quadmesh);
+            geometa.setMeshSummary(summary);
+
+            geometa.write(out_surf + "/grid" + ".json");
+        }
+
+        if(hexFlag.isSet())
+        {
+            if(!filesystem::exists(out_volume))
+                filesystem::create_directory(out_volume);
+
+            MUSE::VolumeMeta geometa;
+            geometa.setProject(Project);
+            geometa.setCommands(excommands);
+
+            MUSE::Hexmesh<> mesh (setResx.getValue(), setResy.getValue(), setResz.getValue(), boundary);
+
+            std::string out_mesh = out_volume + "/grid" + ext_vol;
+
+            mesh.save(out_mesh.c_str());
+
+            MUSE::Volume summary;
+            MUSE::Volume::Parameters par;
+            par.resx = setResx.getValue();
+            par.resy = setResy.getValue();
+            par.resz = setResz.getValue();
+            summary.setParameters(par);
+            summary.setSummary(mesh);
+            geometa.setMeshSummary(summary);
+
+            geometa.write(out_volume + "/grid" + ".json");
+        }
+
+        std::cout << "Grid creation ... COMPLETED." << std::endl;
+
+    }
+
+    if(extractMeshes.isSet() && meshFiles.getValue().size() == 1)
+    {
+        std::vector<std::string> excommands;
+        excommands.push_back(command);
+
+        std::vector<std::string> deps;
+
+        std::vector<std::string> files = meshFiles.getValue();
+
+        if(gridFlag.isSet())
+        {
+            MUSE::SurfaceMeta geometa;
+            geometa.setProject(Project);
+            geometa.setCommands(excommands);
+
+            std::cout << "### Load grid: " << files.at(0) << std::endl;
+            MUSE::Quadmesh<> quadmesh;
+            quadmesh.load(files.at(0).c_str());
+            deps.push_back(filesystem::relative(get_basename(files.at(0)) + ".json", Project.folder));
+
+            std::string name = get_basename(files.at(0));
+
+            std::cout << "### Load mesh for extracting boundary: " << setBoundary.getValue() << std::endl;
+            cinolib::Trimesh<> mesh_bound;
+            mesh_bound.load(setBoundary.getValue().c_str());
+            deps.push_back(filesystem::relative(get_basename(setBoundary.getValue()) + ".json", Project.folder));
+
+            std::string bound_name = setBoundary.getValue().substr(setBoundary.getValue().find_last_of("/")+1, setBoundary.getValue().length());
+            bound_name = get_basename(bound_name);
+
+            //split mesh
+            std::vector<Point2D> bound_2d;
+            for(uint i: mesh_bound.get_ordered_boundary_vertices())
+            {
+                Point2D p;
+                p.x = mesh_bound.vert(i).x();
+                p.y = mesh_bound.vert(i).y();
+                bound_2d.push_back(p);
+            }
+
+            MUSE::Quadmesh<> sub_quadmesh;
+            std::map<cinolib::vec3d, uint> verts;
+
+            for(uint pid=0; pid <quadmesh.num_polys(); pid++)
+            {
+                cinolib::vec3d centr = quadmesh.poly_centroid(pid);
+
+                Point2D c;
+                c.x = centr.x();
+                c.y = centr.y();
+
+                if(point_in_polygon(c, bound_2d))
+                {
+                    cinolib::vec3d v0_pos = quadmesh.poly_vert(pid, 0);
+                    cinolib::vec3d v1_pos = quadmesh.poly_vert(pid, 1);
+                    cinolib::vec3d v2_pos = quadmesh.poly_vert(pid, 2);
+                    cinolib::vec3d v3_pos = quadmesh.poly_vert(pid, 3);
+
+                    // Definizione dell'iteratore
+                    auto v0_it = verts.find(v0_pos);
+                    auto v1_it = verts.find(v1_pos);
+                    auto v2_it = verts.find(v2_pos);
+                    auto v3_it = verts.find(v3_pos);
+
+                    // Definizione indici vertici
+                    uint v0_id = 0;
+                    uint v1_id = 0;
+                    uint v2_id = 0;
+                    uint v3_id = 0;
+
+                    if (v0_it == verts.end()) //se non lo trovo, quindi il vertice non è stato ancora aggiunto
+                    {
+                        v0_id = sub_quadmesh.vert_add(v0_pos);
+                        verts.insert(std::pair<cinolib::vec3d,uint> (v0_pos, v0_id));
+                    }
+                    else
+                        v0_id = v0_it->second;
+
+                    if (v1_it == verts.end())
+                    {
+                        v1_id = sub_quadmesh.vert_add(v1_pos);
+                        verts.insert(std::pair<cinolib::vec3d,uint> (v1_pos, v1_id));
+                    }
+                    else
+                        v1_id = v1_it->second;
+
+                    if (v2_it == verts.end())
+                    {
+                        v2_id = sub_quadmesh.vert_add(v2_pos);
+                        verts.insert(std::pair<cinolib::vec3d,uint> (v2_pos, v2_id));
+                    }
+                    else
+                        v2_id = v2_it->second;
+
+                    if (v3_it == verts.end())
+                    {
+                        v3_id = sub_quadmesh.vert_add(v3_pos);
+                        verts.insert(std::pair<cinolib::vec3d,uint> (v3_pos, v3_id));
+                    }
+                    else
+                        v3_id = v3_it->second;
+
+                    std::vector<uint> vlist;
+                    vlist.push_back(v0_id);
+                    vlist.push_back(v1_id);
+                    vlist.push_back(v2_id);
+                    vlist.push_back(v3_id);
+
+                    sub_quadmesh.poly_add(vlist);
+                }
+            }
+            //std::cout << cinolib::connected_components(sub_quadmesh) << std::endl;
+            if(cleanPoly.isSet())
+                sub_quadmesh.remove_isolate_poly();
+
+            std::string out_mesh = name + "_" + bound_name + ext_surf;
+            sub_quadmesh.save(out_mesh.c_str());
+
+            std::cout << std::endl;
+            std::cout << "Saving quadmesh: " << out_mesh << std::endl;
+
+            MUSE::Surface summary;
+            MUSE::Surface::Parameters par;
+            par.resx = setResx.getValue();
+            par.resy = setResy.getValue();
+            summary.setParameters(par);
+            summary.setSummary(quadmesh);
+            geometa.setMeshSummary(summary);
+            geometa.setDependencies(deps);
+
+            geometa.write(name + "_" + bound_name + ".json");
+        }
+
+        if(hexFlag.isSet())
+        {
+            MUSE::VolumeMeta geometa;
+            geometa.setProject(Project);
+            geometa.setCommands(excommands);
+
+            std::cout << "### Load grid: " << files.at(0) << std::endl;
+            MUSE::Hexmesh<> hexmesh;
+            hexmesh.load(files.at(0).c_str());
+            deps.push_back(filesystem::relative(get_basename(files.at(0)) + ".json", Project.folder));
+
+            std::string name = files.at(0).substr(files.at(0).find_last_of("/")+1, files.at(0).length());
+            name = get_basename(name);
+
+            //std::string ext0 = get_extension(files.at(0));
+
+            std::cout << "### Load mesh for extracting boundary: " << setBoundary.getValue() << std::endl;
+            cinolib::Trimesh<> mesh_bound;
+            mesh_bound.load(setBoundary.getValue().c_str());
+            deps.push_back(filesystem::relative(get_basename(setBoundary.getValue()) + ".json", Project.folder));
+
+            std::string bound_name = setBoundary.getValue().substr(setBoundary.getValue().find_last_of("/")+1, setBoundary.getValue().length());
+            bound_name = get_basename(bound_name);
+
+            MUSE::Hexmesh<> sub_hexmesh;
+            sub_hexmesh.subHexmesh_from_trimesh(hexmesh, mesh_bound);
+
+            MUSE::Volume summary;
+            MUSE::Volume::Parameters par;
+            par.resx = setResx.getValue();
+            par.resy = setResy.getValue();
+            par.resz = setResz.getValue();
+            summary.setParameters(par);
+            summary.setSummary(sub_hexmesh);
+            geometa.setMeshSummary(summary);
+            geometa.setDependencies(deps);
+
+            geometa.write(out_volume + "/" + name + "_" + bound_name + ".json");
+
+            std::string out_mesh = out_volume +"/" + name + "_" + bound_name + ext_vol;
+            sub_hexmesh.save(out_mesh.c_str());
+
+            std::cout << std::endl;
+            std::cout << "Saving hexmesh: " << out_mesh << std::endl;
+        }
+        std::cout << FGRN("Extracting sub-mesh constrained to boundary ... COMPLETED.") << std::endl;
+    }
+
+
+
+
+    if(loadSurface.isSet() && setRemeshing.isSet())
+    {
+        if(!meshFiles.isSet())
+        {
+            std::cout << FRED("ERROR. Set a mesh (surface/volume) by -m command") << std::endl;
+            exit(1);
+        }
+
+        if(meshFiles.getValue().size() >= 2)
+        {
+            std::cout << FRED("ERROR. Only a mesh (surface/volume) is supported.") << std::endl;
+            exit(1);
+        }
+
+        std::cout << "############################" << std::endl;
+        std::cout << "### REMESHING ALGORITHM" << std::endl;
+        std::cout << "### Reference: M.Botsch, L.Kobbelt, A Remeshing Approach to Multiresolution Modeling." << std::endl;
+        std::cout << "### Remeshing ONLY accepts triangular meshes as input." << std::endl;
+        std::cout << "############################" << std::endl;
+        std::cout << std::endl;
+
+        std::string filename_mesh = meshFiles.getValue().at(0);
+
+        MUSE::SurfaceMeta geometa;
+        geometa.setProject(Project);
+
+        std::vector<std::string> excommands;
+        excommands.push_back(command);
+        geometa.setCommands(excommands);
+
+        std::vector<std::string> deps;
+        deps.push_back(filesystem::relative(get_basename(filename_mesh) + ".json", Project.folder));
+        geometa.setDependencies(deps);
+
+        cinolib::Trimesh<> mesh;
+        mesh.load(filename_mesh.c_str());
+        std::cout << "\033[0;32mLoading mesh file: " << filename_mesh << " ... COMPLETED.\033[0m" << std::endl;
+        std::cout << std::endl;
+
+
+        MUSE::Surface surf;
+        MUSE::Surface::Parameters surf_par;
+
+        if(setRotAxis.isSet())
+        {
+            double rad = (setRotAngle.getValue() * M_PI)/180;
+            cinolib::vec3d axis = set_rotation_axis(setRotAxis.getValue());
+
+            cinolib::mat3d R = cinolib::mat3d::ROT_3D(axis, rad);
+            cinolib::vec3d rotcenter {setRotCenterX.getValue(), setRotCenterY.getValue(), setRotCenterZ.getValue()};
+
+            for(uint vid=0; vid<mesh.num_verts(); vid++)
+            {
+                mesh.vert(vid) -= rotcenter;
+                mesh.vert(vid) = R*mesh.vert(vid);
+                mesh.vert(vid) += rotcenter;
+            }
+        }
+
+        if(setMarkedEdge.isSet())
+        {
+            mesh.edge_mark_boundaries();
+            std::cout << "### Remeshing with marked boundary edges." << std::endl;
+        }
+
+        std::cout << "### Remeshing fixed on: mean edge." << std::endl;
+        remesh_Botsch_Kobbelt_2004(mesh, -1, setMarkedEdge.getValue());
+
+        std::cout << "Remeshing ... " << mesh.num_verts() << "V / " << mesh.num_edges() << "E / " << mesh.num_polys() << "P" << std::endl;
+
+        surf.setParameters(surf_par);
+        surf.setSummary(mesh);
+        geometa.setMeshSummary(surf);
+
+        std::string out_mesh = out_surf + "/"+ get_basename(get_filename(filename_mesh)) + "_rem";
+        mesh.save((out_mesh + ext_surf).c_str());
+        std::cout << "\033[0;32mSaving mesh file: " << out_mesh + ext_surf << "\033[0m" << std::endl;
+
+        if(setRotAxis.isSet())
+        {
+            out_mesh += "_rot";
+            mesh.save((out_mesh + ext_surf).c_str());
+            std::cout << "\033[0;32mSaving mesh file: " << out_mesh + ext_surf << "\033[0m" << std::endl;
+        }
+
+        geometa.write(out_mesh + ".json");
     }
 
     } catch (ArgException &e)  // catch exceptions

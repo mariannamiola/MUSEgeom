@@ -762,7 +762,7 @@ int main(int argc, char** argv)
                 else
                 {
                     for(uint idin:id_points_in)
-                        file_out << std::setprecision(9) << xCoord.at(idin) << " " << yCoord.at(idin) << " " << zCoord.at(idin) << std::endl;
+                        file_out << std::fixed << std::setprecision(9) << xCoord.at(idin) << " " << yCoord.at(idin) << " " << zCoord.at(idin) << std::endl;
                     file_out.close();
                 }
             }

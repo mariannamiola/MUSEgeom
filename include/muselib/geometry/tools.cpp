@@ -438,6 +438,52 @@ std::vector<std::vector<float>> resample_elevation_grid(const std::vector<std::v
 }
 
 
+///
+///
+//Funzione di proiezione ortogonale su un piano
+cinolib::vec3d projectPointOntoPlane (const cinolib::vec3d &P, const cinolib::Plane &plane)
+{
+    cinolib::vec3d diff = P - plane.p;
+    double dist = plane.n.dot(diff);
+
+    return P - dist * plane.n;
+};
+
+///
+/// \brief find_nearest_in_local_region
+/// \param target
+/// \param points
+/// \param last_index
+/// \param window
+/// \return
+///
+int find_nearest_in_local_region(const cinolib::vec3d& target,
+                                 const std::vector<cinolib::vec3d>& points,
+                                 int last_index,
+                                 int window)
+{
+    double min_dist = std::numeric_limits<double>::max();
+    int best_idx = last_index;
+
+    int start = std::max(0, last_index - window);
+    int end   = std::min(static_cast<int>(points.size()) - 1, last_index + window);
+
+    for (int i = start; i <= end; ++i)
+    {
+        double dx = target.x() - points[i].x();
+        double dy = target.y() - points[i].y();
+        double dist = dx * dx + dy * dy;
+
+        if (dist < min_dist)
+        {
+            min_dist = dist;
+            best_idx = i;
+        }
+    }
+
+    return best_idx;
+}
+
 // std::vector<std::vector<std::tuple<double, double>>> buffered_points(const std::vector<std::vector<std::tuple<double, double>>>& poly_list, double distance = 1000)
 // {
 //     std::vector<std::vector<std::tuple<double, double>>> buff_vertices_l;

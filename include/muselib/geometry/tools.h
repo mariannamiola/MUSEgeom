@@ -6,6 +6,7 @@
 #include <cinolib/geometry/vec_mat.h>
 
 #include "muselib/data_structures/point.h"
+#include <cinolib/geometry/plane.h>
 
 using namespace MUSE;
 
@@ -47,8 +48,9 @@ void align_points_to_xyplane                    (std::vector<Point3D> &points, c
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
 
-std::vector<std::vector<float>> resample_elevation_grid(const std::vector<std::vector<float>>& elevation, float current_res_x, float current_res_y, float res_target_x, float res_target_y, float XOrigin, float YOrigin, float &corrected_XOrigin, float &corrected_YOrigin);
-
+std::vector<std::vector<float>> resample_elevation_grid (const std::vector<std::vector<float>>& elevation, float current_res_x, float current_res_y, float res_target_x, float res_target_y, float XOrigin, float YOrigin, float &corrected_XOrigin, float &corrected_YOrigin);
+cinolib::vec3d projectPointOntoPlane            (const cinolib::vec3d &P, const cinolib::Plane &plane);
+int find_nearest_in_local_region                (const cinolib::vec3d& target, const std::vector<cinolib::vec3d>& points, int last_index, int window = 20);
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 

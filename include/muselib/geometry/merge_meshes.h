@@ -7,6 +7,14 @@ template<class M, class V, class E, class P>
 void merge_meshes(const MUSE::SurfaceMesh<M,V,E,P> &mesh0, const MUSE::SurfaceMesh<M,V,E,P> &mesh1, MUSE::SurfaceMesh<M,V,E,P> &merge_mesh);
 
 template<class M, class V, class E, class P>
+void merge_and_wrap_meshes(const MUSE::SurfaceMesh<M,V,E,P> &mesh0,
+                           const MUSE::SurfaceMesh<M,V,E,P> &mesh1,
+                           cinolib::Trimesh<> &mesh_merge);
+
+template<class M, class V, class E, class P>
+void merge_and_wrap_meshes(const MUSE::SurfaceMesh<M,V,E,P> &mesh0, const MUSE::SurfaceMesh<M,V,E,P> &mesh1, MUSE::SurfaceMesh<M,V,E,P> &mesh_merge);
+
+template<class M, class V, class E, class P>
 void force_boundary_match_with_normal_check(MUSE::SurfaceMesh<M,V,E,P> &mesh0, MUSE::SurfaceMesh<M,V,E,P> &mesh1, const double &tol = 1e-6);
 
 // template<class M, class V, class E, class P>
