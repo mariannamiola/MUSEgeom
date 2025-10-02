@@ -23,6 +23,8 @@ class Hexmesh : public cinolib::Hexmesh<M,V,E,F,P>
 
         explicit Hexmesh (const double &res_x, const double &res_y, const double &res_z, cinolib::Trimesh<> quadmesh);
 
+        void remove_isolate_poly();
+
         //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
         void subHexmesh_from_trimesh  (MUSE::Hexmesh<> hexmesh, cinolib::Trimesh<> trimesh);

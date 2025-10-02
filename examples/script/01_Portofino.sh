@@ -79,3 +79,29 @@ ${EXE} -P -p ${WP} --points ${INWP}/${BATIM}.${FORMAT1} --axis Z --thresh 0.0 --
 ##Hexahedral meshing
 #${EXE} -M -p ${WP} -m ${OUTSURF}/${INPUT}_closed.obj --hex --resx ${RESX} --resy ${RESY} --resz ${RESZ} --vtk
 
+
+------------------------------------------
+MESH 1
+-P -p /home/mariannamiola/Devel/MUSEgeom/examples/run/01_Portofino --points /home/mariannamiola/Devel/MUSEgeom/examples/run/01_Portofino/in/portofino_batimetria_LR_clean.xyz --manip --axis Z --thresh 0.0 --tri --obj --csv --concave
+
+LOAD AND RANDOM SAMPLING
+-L -p /home/mariannamiola/Devel/MUSEgeom/examples/run/01_Portofino -m /home/mariannamiola/Devel/MUSEgeom/examples/run/01_Portofino/out/surf/portofino_batimetria_LR_clean.obj --subset 10000 --csv
+
+MESH 2
+-P -p /home/mariannamiola/Devel/MUSEgeom/examples/run/01_Portofino --points /home/mariannamiola/Devel/MUSEgeom/examples/run/01_Portofino/in/portofino_batimetria_LR_clean.xyz --manip --axis Z --thresh 0.0 --tri --obj --csv --concave
+
+OFFSET
+-O -p /home/mariannamiola/Devel/MUSEgeom/examples/run/01_Portofino -m /home/mariannamiola/Devel/MUSEgeom/examples/run/01_Portofino/out/surf/_subset_6000.obj --abs -z 20.0 --obj
+
+MERGING
+-U -p /home/mariannamiola/Devel/MUSEgeom/examples/run/01_Portofino -m /home/mariannamiola/Devel/MUSEgeom/examples/run/01_Portofino/out/surf/_subset_6000_absz.obj -m /home/mariannamiola/Devel/MUSEgeom/examples/run/01_Portofino/out/surf/_subset_6000.obj --obj
+
+TET
+-M -p /home/mariannamiola/Devel/MUSEgeom/examples/run/01_Portofino -m /home/mariannamiola/Devel/MUSEgeom/examples/run/01_Portofino/out/surf/_subset_6000_absz__subset_6000.obj --vtk --tet --opt a100000000
+
+GRID
+-G -p . --bbp 513415.0,4902845.0,20 --bbp 528045.0,4902845.0,20 --bbp 528045.0,4910595.0,20 --bbp 513415.0,4910595.0,20 --bbp 513415.0,4902845.0,-100.735 --bbp 528045.0,4902845.0,-100.735 --bbp 528045.0,4910595.0,-100.735 --bbp 513415.0,4910595.0,-100.735 --vtk --resx 200 --resy 200 --resz 50 --hex 
+
+SPLIT 
+-S -p /home/mariannamiola/Devel/MUSEgeom/examples/run/01_Portofino -m /home/mariannamiola/Devel/MUSEgeom/examples/run/01_Portofino/out/volume/grid.vtk --boundary 
+/home/mariannamiola/Devel/MUSEgeom/examples/run/01_Portofino/out/surf/portofino_batimetria_LR_clean_absz_portofino_batimetria_LR_clean.obj --vtk --hex

@@ -1883,56 +1883,6 @@ int main(int argc, char** argv)
                     trimesh.clear();
                     trimesh = points_triangulation(uniq_data, paramSurface.opt);
 
-                    if(trimesh.num_verts() > uniq_data.size())
-                    {
-                        std::cout << std::endl;
-                        std::cout << "Restore z for additional points ..." << std::endl;
-                        if(setMethodZ.getValue().compare("CONSTANT") == 0)
-                        {
-                            std::cout << "Constant value " << setNewZ.getValue() << " is set for Z additional points." << std::endl;
-                            for(uint vid=uniq_data.size(); vid < trimesh.num_verts(); vid++)
-                                trimesh.vert(vid).z() = setNewZ.getValue();
-                        }
-                        else if (setMethodZ.getValue().compare("MEAN") == 0)
-                        {
-                            std::cout << "Interpolation method is adopted to set z for additional points ... NOT ACTIVE." << std::endl;
-                            // fittedPlane plane = fitPlane(uniq_data);
-                            // for(uint vid=uniq_data.size(); vid < trimesh.num_verts(); vid++)
-                            //     trimesh.vert(vid).z() = (trimesh.vert(vid).x()-plane.meanX)*plane.meanA0+(trimesh.vert(vid).y()-plane.meanY)*plane.meanA1 + plane.meanZ;
-                        }
-                        else if (setMethodZ.getValue().compare("NEAR") == 0)
-                        {
-                            std::cout << "Interpolation method is adopted to set z for additional points" << std::endl;
-                            for(uint vid=uniq_data.size(); vid < trimesh.num_verts(); vid++)
-                            {
-                                std::vector<uint> adj_vert = trimesh.adj_v2v(vid);
-                                double mean, sum=0.0;
-                                int count=0;
-                                for(uint bv:adj_vert)
-                                {
-                                    if(trimesh.vert(bv).z() != 0.0)
-                                    {
-                                        sum+=trimesh.vert(bv).z();
-                                        count++;
-                                    }
-                                    //std::cout << sum << std::endl;
-                                }
-                                mean=sum/count;
-                                std::cout << mean << std::endl;
-                                trimesh.vert(vid).z() = mean;
-                            }
-                        }
-                        else
-                        {
-                            std::cout << "No valid interpolation method is set." << std::endl;
-                            exit(1);
-                        }
-                        std::cout << "Restore z for additional points ... COMPLETED." << std::endl;
-                        std::cout << std::endl;
-                    }
-
-                    remove_isolate_vertices(trimesh);
-
                     paramSurface.boundary = "CONVEX HULL";
 
                     std::cout << "\033[0;32mTriangulation with convex hull ... COMPLETED.\033[0m" << std::endl;
@@ -2009,6 +1959,93 @@ int main(int argc, char** argv)
                     std::cerr << "ERROR: Required argument missing: --convex, --concave or --boundary -m <filename>." << std::endl;
                     break;
                 }
+
+                if(trimesh.num_verts() > uniq_data.size())
+                {
+                    std::cout << std::endl;
+                    std::cout << "Restore z for additional points ..." << std::endl;
+                    if(setMethodZ.getValue().compare("CONSTANT") == 0)
+                    {
+                        std::cout << "Constant value " << setNewZ.getValue() << " is set for Z additional points." << std::endl;
+                        for(uint vid=uniq_data.size(); vid < trimesh.num_verts(); vid++)
+                            trimesh.vert(vid).z() = setNewZ.getValue();
+                    }
+                    else if (setMethodZ.getValue().compare("NEAR") == 0)
+                    {
+                        std::cout << "Interpolation method is adopted to set z for additional points ...." << std::endl;
+
+                        double plane_min_z = DBL_MAX;
+                        double plane_max_z = -DBL_MAX;
+
+                        std::vector<cinolib::vec3d> points, add_points, bverts_proj;
+                        for(auto pd:uniq_data)
+                        {
+                            cinolib::vec3d cp (pd.x, pd.y, pd.z);
+                            points.push_back(cp);
+
+                            if(cp.z() < plane_min_z) plane_min_z = cp.z();
+                            if(cp.z() > plane_max_z) plane_max_z = cp.z();
+                        }
+
+                        std::cout << "plane_min_z: " << plane_min_z << std::endl;
+                        std::cout << std::fixed << std::setprecision(setPrecision.getValue()) << "plane_max_z: " << plane_max_z << std::endl;
+
+                        std::cout << "Size vector uniq_data: " << uniq_data.size() << std::endl;
+                        std::cout << "Size vector points: " << points.size() << std::endl;
+                        std::cout << "=== Point manipulation tools is set." << std::endl;
+
+                        cinolib::Plane plane_frompoints (points);
+
+                        for(uint vid=uniq_data.size(); vid < trimesh.num_verts(); vid++)
+                            add_points.push_back(trimesh.vert(vid));
+
+                        std::cout << "Size vector new dataset: " << add_points.size() << std::endl;
+
+                        // Proietta ogni punto aggiunto sul piano: ASSOCIA LA Z DEL PUNTO PIÙ VICINO
+                        int last_best_idx = 0;
+                        for(uint vid=uniq_data.size(); vid < trimesh.num_verts(); vid++)
+                        {
+                            cinolib::vec3d pvid = trimesh.vert(vid);
+                            cinolib::vec3d projected = projectPointOntoPlane(pvid, plane_frompoints);
+
+                            // Usa il region growing
+                            last_best_idx = find_nearest_in_local_region(projected, points, last_best_idx, trimesh.edge_avg_length());
+                            trimesh.vert(vid).z() = points[last_best_idx].z();
+                        }
+                        std::cout << "Size vector points intersection: " << bverts_proj.size() << std::endl;
+                    }
+                    else if (setMethodZ.getValue().compare("MEAN") == 0)
+                    {
+                        std::cout << "Interpolation method is adopted to set z for additional points" << std::endl;
+                        for(uint vid=uniq_data.size(); vid < trimesh.num_verts(); vid++)
+                        {
+                            std::vector<uint> adj_vert = trimesh.adj_v2v(vid);
+                            double mean, sum=0.0;
+                            int count=0;
+                            for(uint bv:adj_vert)
+                            {
+                                if(trimesh.vert(bv).z() != 0.0)
+                                {
+                                    sum+=trimesh.vert(bv).z();
+                                    count++;
+                                }
+                                //std::cout << sum << std::endl;
+                            }
+                            mean=sum/count;
+                            std::cout << mean << std::endl;
+                            trimesh.vert(vid).z() = mean;
+                        }
+                    }
+                    else
+                    {
+                        std::cout << "No valid interpolation method is set." << std::endl;
+                        exit(1);
+                    }
+                    std::cout << "Restore z for additional points ... COMPLETED." << std::endl;
+                    std::cout << std::endl;
+                }
+
+                remove_isolate_vertices(trimesh);
 
                 Surface.setParameters(paramSurface);
                 Surface.setSummary(trimesh);
@@ -3013,6 +3050,39 @@ int main(int argc, char** argv)
 
             surf_par.type = "TRIMESH";
 
+            if(subSet.isSet())
+            {
+                srand(time(NULL));
+                std::vector<size_t> random_id(subSet.getValue());
+                for (size_t i = 0; i < subSet.getValue(); i++)
+                {
+                    random_id[i] = rand() % mesh.num_verts();
+                    //std::cout << "rand ID: " << random_id[i] << std::endl;
+                }
+
+                std::sort(random_id.begin(), random_id.end());
+                random_id.erase(std::unique( random_id.begin(), random_id.end() ), random_id.end() );
+
+                std::vector<Point3D> data_rand;
+                for(int rid:random_id)
+                {
+                    if(!mesh.vert_is_boundary(rid))
+                    {
+                        Point3D prand;
+                        prand.x = mesh.vert(rid).x();
+                        prand.y = mesh.vert(rid).y();
+                        prand.z = mesh.vert(rid).z();
+                        data_rand.push_back(prand);
+                    }
+                }
+                std::cout << "### Size of data vector (before random sampling): " << mesh.num_verts() << std::endl;
+                std::cout << "### New size of data vector (after random sampling): " << data_rand.size() << std::endl;
+                std::cout << std::endl;
+
+                std::string filename_rand = "_subset" + ext_txt;
+                export3d_xyz(out_surf + "/" + filename_rand, data_rand);
+            }
+
             if(splitMethod.isSet())
             {
                 if(splitMethod.getValue().compare("CENTROID") == 0)
@@ -3192,6 +3262,29 @@ int main(int argc, char** argv)
                 std::cout << "\033[0;32mLoading mesh file: " << filename_mesh1 << " ... COMPLETED.\033[0m" << std::endl;
                 std::string basename1 = get_basename(get_filename(filename_mesh1));
 
+
+                // Check on normals
+                double offset = trimesh1.bbox().center().z() - trimesh0.bbox().center().z();
+                std::cout << "Offset in z direction: " << offset << std::endl;
+
+                if(offset > 0) //check for normals and updated (if necessary)
+                {
+                    for(unsigned int pid=0; pid<trimesh0.num_polys(); pid++)
+                        trimesh0.poly_flip_winding_order(pid);
+                }
+                else if(offset < 0)
+                {
+                    for(unsigned int pid=0; pid<trimesh1.num_polys(); pid++)
+                        trimesh1.poly_flip_winding_order(pid);
+                }
+                else
+                {
+                    std::cerr << "ERROR: z offset cannot be equal to 0." << std::endl;
+                    exit(1);
+                }
+                std::cout << FGRN("Check on normals ... COMPLETED.") << std::endl;
+                std::cout << std::endl;
+
                 MUSE::SurfaceMesh<> trimesh;
                 std::string out_mesh = out_surf +"/" + basename0 + "_" + basename1 + ext_surf;
 
@@ -3299,6 +3392,9 @@ int main(int argc, char** argv)
         }
     }
 
+    ///
+    /// Creating a grid delimiting by a bbox of points
+    ///
     if(gridData.isSet())
     {
         std::vector<std::string> excommands;
@@ -3399,6 +3495,8 @@ int main(int argc, char** argv)
 
     }
 
+    ///
+    /// Extracting mesh from a 2D/3D grid according to a boundary
     if(extractMeshes.isSet() && meshFiles.getValue().size() == 1)
     {
         std::vector<std::string> excommands;
@@ -3558,6 +3656,7 @@ int main(int argc, char** argv)
 
             MUSE::Hexmesh<> sub_hexmesh;
             sub_hexmesh.subHexmesh_from_trimesh(hexmesh, mesh_bound);
+            sub_hexmesh.remove_isolate_poly();
 
             MUSE::Volume summary;
             MUSE::Volume::Parameters par;
