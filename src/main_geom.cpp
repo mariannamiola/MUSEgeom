@@ -38,6 +38,7 @@
 #include <cinolib/voxelize.h>
 #include <cinolib/voxel_grid_to_hexmesh.h>
 #include <cinolib/remesh_BotschKobbelt2004.h>
+#include <cinolib/export_surface.h>
 
 #include <concaveman.h>
 // https://adared.ch/concaveman-cpp-a-very-fast-2d-concave-hull-maybe-even-faster-with-c-and-python/
@@ -813,102 +814,6 @@ int main(int argc, char** argv)
                 continue;
             }
 
-            // if(!boundaries.empty())
-            // {
-            //     // std::cout << "TRASLAZIONEEEEEEEEEEEEEE" << std::endl;
-            //     // double bbox_xmax = -DBL_MAX;
-            //     // double bbox_ymax = -DBL_MAX;
-            //     // double bbox_xmin = DBL_MAX;
-            //     // double bbox_ymin = DBL_MAX;
-            //     // for(size_t i=0; i< boundaries.at(0).size(); i++)
-            //     // {
-            //     //     if(boundaries.at(0).at(i).x > bbox_xmax)
-            //     //         bbox_xmax = boundaries.at(0).at(i).x;
-
-            //     //     if(boundaries.at(0).at(i).y > bbox_ymax)
-            //     //         bbox_ymax = boundaries.at(0).at(i).y;
-
-            //     //     if(boundaries.at(0).at(i).x < bbox_xmin)
-            //     //         bbox_xmin = boundaries.at(0).at(i).x;
-
-            //     //     if(boundaries.at(0).at(i).y < bbox_ymin)
-            //     //         bbox_ymin = boundaries.at(0).at(i).y;
-            //     // }
-            //     // std::cout << "max_x = " << bbox_xmax << "; min_x = " << bbox_xmin << std::endl;
-            //     // std::cout << "max_y = " << bbox_ymax << "; min_y = " << bbox_ymin << std::endl;
-
-            //     // double deltax = (bbox_xmax - bbox_xmin)*0.5;
-            //     // double deltay = (bbox_ymax - bbox_ymin)*0.5;
-
-            //     // std::cout << deltax << std::endl;
-
-            //     // for(size_t i=0; i< boundaries.at(0).size(); i++)
-            //     // {
-            //     //     boundaries.at(0).at(i).x -= deltax;
-            //     //     boundaries.at(0).at(i).y -= deltay;
-
-            //     //     std::cout << boundaries.at(0).at(i).x << std::endl;
-            //     // }
-            //     std::cout << "TRASLAZIONE VERSO IL CENTROIDE" << std::endl;
-
-            //     double sum_x = 0.0;
-            //     double sum_y = 0.0;
-            //     size_t num_points = boundaries.at(0).size();
-
-            //     // Calcolo della somma delle coordinate
-            //     for (size_t i = 0; i < num_points; ++i)
-            //     {
-            //         sum_x += boundaries.at(0).at(i).x;
-            //         sum_y += boundaries.at(0).at(i).y;
-            //     }
-
-            //     // Centroide = media delle coordinate
-            //     double centroid_x = sum_x / num_points;
-            //     double centroid_y = sum_y / num_points;
-
-            //     std::cout << "Centroide: (" << centroid_x << ", " << centroid_y << ")" << std::endl;
-
-            //     // Traslazione dei punti verso il centroide (centratura sull'origine)
-            //     for (size_t i = 0; i < num_points; ++i)
-            //     {
-            //         boundaries.at(0).at(i).x -= centroid_x;
-            //         boundaries.at(0).at(i).y -= centroid_y;
-            //     }
-            // }
-
-            // if(!datasets.empty())
-            // {
-            //     double bbox_xmax = -DBL_MAX;
-            //     double bbox_ymax = -DBL_MAX;
-            //     double bbox_xmin = DBL_MAX;
-            //     double bbox_ymin = DBL_MAX;
-            //     for(size_t i=0; i< datasets.size(); i++)
-            //     {
-            //         if(datasets.at(0).at(i).x > bbox_xmax)
-            //             bbox_xmax = datasets.at(0).at(i).x;
-
-            //         if(datasets.at(0).at(i).y > bbox_ymax)
-            //             bbox_ymax = datasets.at(0).at(i).y;
-
-            //         if(datasets.at(0).at(i).x < bbox_xmin)
-            //             bbox_xmin = datasets.at(0).at(i).x;
-
-            //         if(datasets.at(0).at(i).y < bbox_ymin)
-            //             bbox_ymin = datasets.at(0).at(i).y;
-            //     }
-            //     std::cout << "max_x = " << bbox_xmax << "; min_x = " << bbox_xmin << std::endl;
-            //     std::cout << "max_y = " << bbox_ymax << "; min_y = " << bbox_ymin << std::endl;
-
-            //     double deltax = bbox_xmax - bbox_xmin;
-            //     double deltay = bbox_ymax - bbox_ymin;
-
-            //     for(size_t i=0; i< datasets.at(0).size(); i++)
-            //     {
-            //         datasets.at(0).at(i).x += deltax;
-            //         datasets.at(0).at(i).y += deltay;
-            //     }
-            // }
-
 
             // Export
             if(setSaveAttributesTable.isSet())
@@ -1400,22 +1305,6 @@ int main(int argc, char** argv)
                         geometa.setDataRotation(dataRotation);
                         applyRotation(boundary);
 
-                        // if(setRotAxis.isSet())
-                        // {
-                        //     for(size_t k = 0; k < boundary.size(); k++)
-                        //     {
-                        //         cinolib::vec3d sample(boundary.at(k).x, boundary.at(k).y, boundary.at(k).z);
-                        //         cinolib::vec3d axis = set_rotation_axis(setRotAxis.getValue());
-                        //         cinolib::vec3d c(setRotCenterX.getValue(), setRotCenterY.getValue(), setRotCenterZ.getValue());
-
-                        //         sample = point_rotation(sample, axis, setRotAngle.getValue(), c);
-
-                        //         boundary.at(k).x = sample.x();
-                        //         boundary.at(k).y = sample.y();
-                        //         boundary.at(k).z = sample.z();
-                        //     }
-                        // }
-
                         paramSurface.opt = "";
 
                         if(optFlag.isSet())
@@ -1494,22 +1383,6 @@ int main(int argc, char** argv)
     ///
     if(loadPointCloud.isSet())
     {
-        // // Check on input files (.txt, .dat)
-        // if (!setPoints.isSet() && !setPolygon.isSet()) {
-        //     if(filesystem::is_empty(in_geometry))
-        //     {
-        //         std::cerr << "\033[0;31mInput ERROR: Insert file into: " << in_geometry << "\033[0m" << std::endl;
-        //         exit(1);
-        //     }
-
-        //     std::vector<std::string> file_list = get_xyzfiles(in_geometry);
-        //     if (file_list.empty())
-        //     {
-        //         std::cerr << "\033[0;31mInput ERROR: NO datafile (.txt, .dat, .xyz) in the folder"<< in_geometry << "\033[0m" << std::endl;
-        //         exit(1);
-        //     }
-        // }
-
         if(!setPoints.isSet() && !setPolygon.isSet())
         {
             std::cout << FRED("ERROR: Set --points <filename> or --polygon <filename>.") << std::endl;
@@ -1803,32 +1676,6 @@ int main(int argc, char** argv)
                 // Proietta ogni punto del bordo sul piano
                 int last_best_idx = 0;
 
-                // for (auto pvid : bpoints)
-                // {
-                //     cinolib::vec3d intersection;
-                //     cinolib::vec3d p2 = pvid;
-                //     p2.z() = plane_min_z;
-
-                //     cinolib::Segment segm (0, pvid, p2);
-                //     std::cout << "p2: " << p2 << std::endl;
-                //     std::cout << "pvid: " << pvid << std::endl;
-
-                //     if (!intersectPlaneSegment(plane_frompoints, segm, intersection)) //.vert(vid));
-                //     {
-                //         std::cout << FRED("=== ERROR: No intersection is found! ") << intersection << std::endl;
-                //         continue;
-                //     }
-                //     //std::cout << "FOUND INTERSECTION: " << intersection << std::endl;
-                //     // Usa il region growing
-                //     last_best_idx = find_nearest_in_local_region(intersection, points, last_best_idx, 20);
-                //     double z = points[last_best_idx].z();
-
-                //     cinolib::vec3d adjusted(intersection.x(), intersection.y(), z);
-                //     bverts_proj.push_back(adjusted);
-                // }
-                // std::cout << "Size vector points intersection: " << bverts_proj.size() << std::endl;
-
-
                 for (const auto &pvid : bpoints)
                 {
                     cinolib::vec3d projected = projectPointOntoPlane(pvid, plane_frompoints);
@@ -2032,7 +1879,7 @@ int main(int argc, char** argv)
                                 //std::cout << sum << std::endl;
                             }
                             mean=sum/count;
-                            std::cout << mean << std::endl;
+                            //std::cout << mean << std::endl;
                             trimesh.vert(vid).z() = mean;
                         }
                     }
@@ -2515,9 +2362,6 @@ int main(int argc, char** argv)
 
         // Check on normals
         double offset = trimesh1.bbox().center().z() - trimesh0.bbox().center().z();
-        //        double offset = trimesh1.bbox().max.z() - trimesh0.bbox().min.z();
-        //        std::cout << "bb1: " << trimesh1.bbox().max.z()<< std::endl;
-        //        std::cout << "bb0: " << trimesh0.bbox().min.z()<< std::endl;
 
 
         std::cout << "Offset in z direction: " << offset << std::endl;
@@ -3426,7 +3270,7 @@ int main(int argc, char** argv)
             exit(1);
         }
 
-        //TO DOOOOOOOOOOOOOOOOOO: CONTROLLARE FUNZIONE DI ROTAZIONE PUNTI!!!
+        //TO DO: CONTROLLARE FUNZIONE DI ROTAZIONE PUNTI!
         if(setRotAxis.isSet())
         {
             std::vector<Point3D> boundary_tmp = boundary;
@@ -3768,6 +3612,162 @@ int main(int argc, char** argv)
         }
 
         geometa.write(out_mesh + ".json");
+    }
+
+    //Lettura vettore di superfici
+    if(loadVolume.isSet())
+    {
+        if(!filesystem::exists(out_volume))
+            filesystem::create_directory(out_volume);
+
+        std::vector<std::string> files = meshFiles.getValue();
+
+        for(size_t i=0; i< files.size(); i++)
+        {
+            std::string filename_mesh = files.at(i);
+
+            MUSE::VolumeMeta geometa;
+            geometa.setProject(Project);
+
+            std::vector<std::string> excommands;
+            excommands.push_back(command);
+            geometa.setCommands(excommands);
+
+            if(splitMethod.isSet())
+            {
+                std::vector<std::string> deps;
+                deps.push_back(filesystem::relative(get_basename(filename_mesh) + ".json", Project.folder));
+
+                //                if(filename_mesh.find("geometry/") != std::string::npos)
+                //                    deps.push_back(get_basename(filename_mesh.substr(filename_mesh.find("geometry/"))) + ".json");
+                geometa.setDependencies(deps);
+            }
+
+
+            MUSE::VolumeMesh<>mesh;
+            mesh.load(filename_mesh.c_str());
+            std::cout << "\033[0;32mLoading mesh file: " << filename_mesh << " ... COMPLETED.\033[0m" << std::endl;
+
+            MeshType type = mesh.set_meshtype();
+            std::cout << "### Check mesh type ... " << std::endl;
+            std::cout << "### Number of verts per poly: " << mesh.verts_per_poly(0) <<  std::endl;
+
+            MUSE::Volume vol;
+            MUSE::Volume::Parameters vol_par;
+
+            if(setRotAxis.isSet())
+            {
+                double rad = (setRotAngle.getValue() * M_PI)/180;
+                cinolib::vec3d axis = set_rotation_axis(setRotAxis.getValue());
+
+                cinolib::mat3d R = cinolib::mat3d::ROT_3D(axis, rad);
+                cinolib::vec3d rotcenter {setRotCenterX.getValue(), setRotCenterY.getValue(), setRotCenterZ.getValue()};
+
+                for(uint vid=0; vid<mesh.num_verts(); vid++)
+                {
+                    mesh.vert(vid) -= rotcenter;
+                    mesh.vert(vid) = R*mesh.vert(vid);
+                    mesh.vert(vid) += rotcenter;
+                }
+            }
+
+            if(type == MeshType::TETMESH)
+            {
+                std::cout << "Mesh type: TETMESH" <<  std::endl;
+                std::cout << std::endl;
+
+                vol_par.type = "TETMESH";
+
+                std::cout << "X = " << std::setprecision(10) << mesh.bbox().min.x() << "; " << mesh.bbox().max.x() << std::endl;
+                std::cout << "Y = " << std::setprecision(10) << mesh.bbox().min.y() << "; " << mesh.bbox().max.y() << std::endl;
+                std::cout << "Z = " << std::setprecision(10) << mesh.bbox().min.z() << "; " << mesh.bbox().max.z() << std::endl;
+
+                if(splitMethod.isSet())
+                {
+                    std::cout << FRED("TO BE IMPLEMENTED ...") << std::endl;
+                    exit(1);
+                }
+            }
+            else if(type == MeshType::HEXMESH)
+            {
+                std::cout << "Mesh type: HEXMESH" <<  std::endl;
+                std::cout << std::endl;
+
+                vol_par.type = "HEXMESH";
+
+                if(splitMethod.isSet())
+                {
+                    std::cout << FRED("TO BE IMPLEMENTED ...") << std::endl;
+                    exit(1);
+                }
+            }
+            else
+            {
+                std::cout << FRED("ERROR. Only tetrahedral/hexahedral meshes are supported!") << std::endl;
+                exit(1);
+            }
+
+            std::cout << "\033[0;32mLoading mesh file: " << filename_mesh << " ... COMPLETED.\033[0m" << std::endl;
+
+            vol.setParameters(vol_par);
+            vol.setSummary(mesh);
+            geometa.setMeshSummary(vol);
+
+            std::string out_mesh = out_volume + "/"+ get_basename(get_filename(filename_mesh));
+            geometa.write(out_mesh + ".json");
+
+            if(splitMethod.isSet())
+            {
+                out_mesh += "_res";
+                mesh.save((out_mesh + ext_vol).c_str(), type);
+                geometa.write(out_mesh + ".json");
+                std::cout << "\033[0;32mSaving mesh file: " << out_mesh + ext_vol << "\033[0m" << std::endl;
+            }
+
+            if(setRotAxis.isSet())
+            {
+                out_mesh += "_rot";
+                mesh.save((out_mesh + ext_vol).c_str(), type);
+                geometa.write(out_mesh + ".json");
+                std::cout << "\033[0;32mSaving mesh file: " << out_mesh + ext_vol << "\033[0m" << std::endl;
+            }
+
+            if(setScaleMesh.isSet())
+            {
+                mesh.scale(setScaleFactorX, setScaleFactorY, setScaleFactorZ);
+                out_mesh += "_scale";
+                mesh.save((out_mesh + ext_vol).c_str(), type);
+                geometa.write(out_mesh + ".json");
+                std::cout << "\033[0;32mSaving mesh file: " << out_mesh + ext_vol << "\033[0m" << std::endl;
+            }
+
+            if(extractSurface.isSet())
+            {
+                std::cout << "Extract surface mesh from volume ... " << std::endl;
+                std::string out_surfmesh = out_surf + "/" + get_basename(get_filename(filename_mesh));
+                MUSE::SurfaceMesh<> surf_mesh;
+                export_surface(mesh, surf_mesh);
+
+                std::cout << "=================== INFO bbox vertices ===================" << std::endl;
+                std::cout << "=== bbox x_min,y_min,z_min: " << std::fixed << std::setprecision(setPrecision.getValue()) << surf_mesh.bbox().min.x() << "," << surf_mesh.bbox().min.y() << "," << surf_mesh.bbox().min.z() <<  std::endl;
+                std::cout << "=== bbox x_max,y_min,z_min: " << std::fixed << std::setprecision(setPrecision.getValue()) << surf_mesh.bbox().max.x() << "," << surf_mesh.bbox().min.y() << "," << surf_mesh.bbox().min.z() <<  std::endl;
+                std::cout << "=== bbox x_max,y_max,z_min: " << std::fixed << std::setprecision(setPrecision.getValue()) << surf_mesh.bbox().max.x() << "," << surf_mesh.bbox().max.y() << "," << surf_mesh.bbox().min.z() <<  std::endl;
+                std::cout << "=== bbox x_min,y_max,z_min: " << std::fixed << std::setprecision(setPrecision.getValue()) << surf_mesh.bbox().min.x() << "," << surf_mesh.bbox().max.y() << "," << surf_mesh.bbox().min.z() <<  std::endl;
+
+                std::cout << "=== bbox x_min,y_min,z_max: " << std::fixed << std::setprecision(setPrecision.getValue()) << surf_mesh.bbox().min.x() << "," << surf_mesh.bbox().min.y() << "," << surf_mesh.bbox().max.z() <<  std::endl;
+                std::cout << "=== bbox x_max,y_min,z_max: " << std::fixed << std::setprecision(setPrecision.getValue()) << surf_mesh.bbox().max.x() << "," << surf_mesh.bbox().min.y() << "," << surf_mesh.bbox().max.z() <<  std::endl;
+                std::cout << "=== bbox x_max,y_max,z_max: " << std::fixed << std::setprecision(setPrecision.getValue()) << surf_mesh.bbox().max.x() << "," << surf_mesh.bbox().max.y() << "," << surf_mesh.bbox().max.z() <<  std::endl;
+                std::cout << "=== bbox x_min,y_max,z_max: " << std::fixed << std::setprecision(setPrecision.getValue()) << surf_mesh.bbox().min.x() << "," << surf_mesh.bbox().max.y() << "," << surf_mesh.bbox().max.z() <<  std::endl;
+
+
+
+                std::cout << "=== bbox diag: " << std::fixed << std::setprecision(setPrecision.getValue()) << surf_mesh.bbox().diag() << std::endl;
+
+
+                surf_mesh.save((out_surfmesh + ext_surf).c_str());
+                std::cout << "\033[0;32mSaving mesh file: " << out_surfmesh + ext_surf << "\033[0m" << std::endl;
+            }
+        }
     }
 
     } catch (ArgException &e)  // catch exceptions
