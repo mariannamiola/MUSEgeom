@@ -244,11 +244,7 @@ int main(int argc, char** argv)
     SwitchArg restoreScalarField            ("", "rscalar", "Restore scalar field from centroids configuration and real samples", cmd, false); //booleano
 
 
-    //Option 8. Utility to extract id cells from a point cloud
-
-
-
-    // Option 9. Multi-resolution approach (associate a scalar field to meshes with different resolutions)
+    // Option 8. Multi-resolution approach (associate a scalar field to meshes with different resolutions)
     SwitchArg setMultiResolution            ("D", "res", "Set multiresolution", cmd, false); //booleano
     ValueArg<std::string> setScalarField    ("f", "file", "Set scalar field file", false, "Directory", "path", cmd);
     ValueArg<std::string> setRefModel       ("", "refmod", "Geometry model", false, "name_geometry", "string", cmd);
@@ -257,7 +253,7 @@ int main(int argc, char** argv)
     ValueArg<int> setPrecision              ("", "prec", "Set precision", false, 6, "int" , cmd);
     ValueArg<double> setTolerance           ("", "tol", "Set tolerance", false, 1e-02, "double" , cmd);
 
-    // Tetgenerator - integration
+    // Option 9. Tetgenerator (with a plane) - integration
     ValueArg<std::string> xyzPlane          ("", "plane", "Plane", false, "plane", "string", cmd);
     ValueArg<double> planeShift             ("", "plane-shift", "Plane shift", false, 0.0, "double", cmd);
 
@@ -268,6 +264,7 @@ int main(int argc, char** argv)
 
 
     /// Help
+    SwitchArg helpVectortoMesh              ("", "help-vectomesh", "", cmd, false); //booleano
     SwitchArg helpVol                       ("", "help-vol", "", cmd, false); //booleano
 
     // Parse the argv array.
@@ -276,6 +273,11 @@ int main(int argc, char** argv)
     /////////////////////////////////////////////
     /// HELP
     ///
+
+    if (helpVectortoMesh.isSet()) {
+        printHelpVectortoMesh();
+        return 0;
+    }
 
     if (helpVol.isSet()) {
         printHelpVolume();
