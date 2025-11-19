@@ -44,7 +44,7 @@
 CMakeLists.txt.user
 
 # Building folder
-external/PROJ/installed/*
+external/PROJ/installed
 external/gdal/installed
 build/
 
