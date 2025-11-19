@@ -46,27 +46,27 @@ if $BUILD_ALL; then
     cmake --install .
     
     ###VTK
-    export VTK=${SCRIPT_DIR}/external/VTK
-    cd ${VTK}
-    mkdir -p build
-    cd build
+    #export VTK=${SCRIPT_DIR}/external/VTK
+    #cd ${VTK}
+    #mkdir -p build
+    #cd build
 
-    cmake .. -DCMAKE_BUILD_TYPE=Release \
-             -DCMAKE_INSTALL_PREFIX=${VTK}/installed \
-             -DVTK_BUILD_TESTING=OFF \
-             -DVTK_GROUP_ENABLE_Qt=NO \
-             -DBUILD_SHARED_LIBS=ON
+    #cmake .. -DCMAKE_BUILD_TYPE=Release \
+    #         -DCMAKE_INSTALL_PREFIX=${VTK}/installed \
+    #         -DVTK_BUILD_TESTING=OFF \
+    #         -DVTK_GROUP_ENABLE_Qt=NO \
+    #         -DBUILD_SHARED_LIBS=ON
 
-    cmake --build . --parallel 16
-    cmake --install .
+    #cmake --build . --parallel 16
+    #cmake --install .
 fi
 
 ### TOOL APPLICATION
 cd ${SCRIPT_DIR}
 mkdir -p build
 cd build
-cmake ..
-make
-#cmake -DCMAKE_BUILD_TYPE=Release ..
-#cmake --build . --config Release
+#cmake ..
+#make
+cmake -DCMAKE_BUILD_TYPE=Debug ..
+cmake --build . --config Debug
 

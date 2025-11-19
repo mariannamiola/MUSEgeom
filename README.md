@@ -69,11 +69,22 @@ To guarantee replicability, data of our examples are provided in the _example_ f
 
 ## Contributors
 - Marianna Miola (CNR-IMATI, Genova, Italy), email: marianna.miola@cnr.it
+- Daniela Cabiddu (CNR-IMATI, Genova, Italy), email: daniela.cabiddu@cnr.it
 
 ## Citing us
 If you use our tool in your academic projects, please consider citing us using the following BibTeX entry:
 ```
-
+@inproceedings{miola2025stag,
+  author       = {Marianna Miola and Daniela Cabiddu and Simone Pittaluga and Micaela Raviola and Marino Vetuschi Zuccolini},
+  title        = {{A lightweight open-source tool for Meshing within Geosciences}},
+  year         = {2025},
+  booktitle    = {Smart Tools and Applications in Graphics - Eurographics Italian Chapter Conference},
+  publisher    = {The Eurographics Association},
+  note         = {Manuscript under pubblication in *STAG2025 Conference Proceedings*}
+}
 ```
 
 ## Acknowledgment
+Marianna Miola acknowledges the Italian National Biodiversity Future Center (NBFC) - National Recovery and Resilience Plan (NRRP) funded by the European Union - NextGenerationEU (project code CN 00000033).
+
+Daniela Cabiddu, Simone Pittaluga, and Marino Vetuschi Zuccolini are members of the RAISE Innovation Ecosystem, funded by the European Union - NextGenerationEU and by the Ministry of University and Research (MUR), National Recovery and Resilience Plan (NRRP), Mission 4, Component 2, Investment 1.5, project ``RAISE - Robotics and AI for Socio-economic Empowerment'' (ECS00000035).
