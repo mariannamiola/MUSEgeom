@@ -43,7 +43,8 @@ cp ${DATA_SOURCE}/${BATIM}.* ${INWP}
 
 # 2. Set flags
 #######################################################################
-export OPT=a1000
+export OPTSURF=a10000
+export OPTVOL=a100000000
 
 
 # 3. Starting script ...
@@ -57,6 +58,7 @@ echo "
     			
                		"
 export OUTSURF=${WP}/out/surf
+export OUTVOL=${WP}/out/volume
 
 ##Reading vector file and extracting boundary points
 ${EXE} -V -p ${WP} --save --xyz --tri --obj --opt ${OPT}
@@ -65,43 +67,56 @@ mv ${OUTSURF}/${BOUNDARY}_0@${FORMAT0}.xyz ${OUTSURF}/${BOUNDARY}.xyz
 ##Reading batimetry as point cloud with z-value filtering
 ${EXE} -P -p ${WP} --points ${INWP}/${BATIM}.${FORMAT1} --axis Z --thresh 0.0 --boundary ${OUTSURF}/${BOUNDARY}.xyz --tri --obj
 
--P -p /home/mariannamiola/Devel/MUSEgeom/examples/run/01_Portofino --boundary /home/mariannamiola/Devel/MUSEgeom/examples/run/01_Portofino/out/surf/AOI.xyz --points /home/mariannamiola/Devel/MUSEgeom/examples/run/01_Portofino/in/portofino_batimetria_LR_clean.xyz --manip --axis Z --thresh 0.0 --tri --obj --csv
+export LIGHTDATA=portofino_batimetria_LR_clean
+${EXE} -P -p ${WP} --points ${INWP}/${LIGHTDATA}.xyz --manip --axis Z --thresh 0.0 --tri --obj --csv --concave ##--boundary ${OUTSURF}/${BOUNDARY}.xyz
 
-##Surface offset
-#${EXE} -O -p ${WP} -m ${OUTSURF}/${BATIM}.obj --abs -z 0.0 --obj
-#mv ${OUTSURF}/${INPUT}_dz.obj ${OUTSURF}/${INPUT}_dzsup.obj
+##Load and random sampling
+${EXE} -L -p ${WP} --m ${OUTSURF}/${LIGHTDATA}.obj --subset 6000 --csv
 
+##2nd mesh from random sampled dataset
+${EXE} -P -p ${WP} --points ${OUTSURF}/_subset_6000.csv --manip --axis Z --thresh 0.0 --tri --obj --concave --opt ${OPTSURF} --meth MEAN
 
+##Offset mesh2 at absolute elevation
+${EXE} -O -p ${WP} -m ${OUTSURF}/_subset_6000.obj --abs -z 20.0 --obj
 
-##Lateral closure of the two surfaces
-#${EXE} -T -p ${WP} -m ${OUTSURF}/${INPUT}_dzsup.obj -m ${OUTSURF}/${INPUT}_dzinf.obj --obj
+##Merging
+${EXE} -U -p ${WP} -m ${OUTSURF}/_subset_6000_absz.obj -m ${OUTSURF}/_subset_6000.obj --obj
+
+##Tetrahedral meshing
+${EXE} -M -p ${WP} -m ${OUTSURF}/_subset_6000_absz__subset_6000.obj --vtk --tet --opt ${OPTVOL}
+
+##Gridding the bounding box
+${EXE} -G -p ${WP} --bbp 513415.000000,4902845.000000,-100.735190 --bbp 528045.000000,4902845.000000,-100.735190 --bbp 528045.000000,4910595.000000,-100.735190 --bbp 513415.000000,4910595.000000,-100.735190 --bbp 513415.000000,4902845.000000,20.000000 --bbp 528045.000000,4902845.000000,20.000000 --bbp 528045.000000,4910595.000000,20.000000 --bbp 513415.000000,4910595.000000,20.000000 --vtk --resx 10 --resy 10 --resz 10 --hex 
+
+##Split 
+${EXE} -S -p ${WP} -m ${OUTVOL}/grid.vtk --boundary ${OUTSURF}/portofino_batimetria_LR_clean_absz_portofino_batimetria_LR_clean.obj --vtk --hex
+
 
 ##Hexahedral meshing
 #${EXE} -M -p ${WP} -m ${OUTSURF}/${INPUT}_closed.obj --hex --resx ${RESX} --resy ${RESY} --resz ${RESZ} --vtk
 
 
 ------------------------------------------
-MESH 1
--P -p /home/mariannamiola/Devel/MUSEgeom/examples/run/01_Portofino --points /home/mariannamiola/Devel/MUSEgeom/examples/run/01_Portofino/in/portofino_batimetria_LR_clean.xyz --manip --axis Z --thresh 0.0 --tri --obj --csv --concave
+#MESH 1
+#-P -p /home/mariannamiola/Devel/MUSEgeom/examples/run/01_Portofino --points /home/mariannamiola/Devel/MUSEgeom/examples/run/01_Portofino/in/portofino_batimetria_LR_clean.xyz --manip --axis Z --thresh 0.0 --tri --obj --csv --concave
 
-LOAD AND RANDOM SAMPLING
--L -p /home/mariannamiola/Devel/MUSEgeom/examples/run/01_Portofino -m /home/mariannamiola/Devel/MUSEgeom/examples/run/01_Portofino/out/surf/portofino_batimetria_LR_clean.obj --subset 10000 --csv
+#LOAD AND RANDOM SAMPLING
+#-L -p /home/mariannamiola/Devel/MUSEgeom/examples/run/01_Portofino -m /home/mariannamiola/Devel/MUSEgeom/examples/run/01_Portofino/out/surf/portofino_batimetria_LR_clean.obj --subset 6000 --csv
 
-MESH 2
--P -p /home/mariannamiola/Devel/MUSEgeom/examples/run/01_Portofino --points /home/mariannamiola/Devel/MUSEgeom/examples/run/01_Portofino/in/portofino_batimetria_LR_clean.xyz --manip --axis Z --thresh 0.0 --tri --obj --csv --concave
+#MESH 2
+#-P -p /home/mariannamiola/Devel/MUSEgeom/examples/run/01_Portofino --points /home/mariannamiola/Devel/MUSEgeom/examples/run/01_Portofino/out/surf/_subset_6000.csv --manip --axis Z --thresh 0.0 --tri --obj --concave --opt a10000 --meth MEAN
 
-OFFSET
--O -p /home/mariannamiola/Devel/MUSEgeom/examples/run/01_Portofino -m /home/mariannamiola/Devel/MUSEgeom/examples/run/01_Portofino/out/surf/_subset_6000.obj --abs -z 20.0 --obj
+#OFFSET
+#-O -p /home/mariannamiola/Devel/MUSEgeom/examples/run/01_Portofino -m /home/mariannamiola/Devel/MUSEgeom/examples/run/01_Portofino/out/surf/_subset_6000.obj --abs -z 20.0 --obj
 
-MERGING
--U -p /home/mariannamiola/Devel/MUSEgeom/examples/run/01_Portofino -m /home/mariannamiola/Devel/MUSEgeom/examples/run/01_Portofino/out/surf/_subset_6000_absz.obj -m /home/mariannamiola/Devel/MUSEgeom/examples/run/01_Portofino/out/surf/_subset_6000.obj --obj
+#MERGING
+#-U -p /home/mariannamiola/Devel/MUSEgeom/examples/run/01_Portofino -m /home/mariannamiola/Devel/MUSEgeom/examples/run/01_Portofino/out/surf/_subset_6000_absz.obj -m /home/mariannamiola/Devel/MUSEgeom/examples/run/01_Portofino/out/surf/_subset_6000.obj --obj
 
-TET
--M -p /home/mariannamiola/Devel/MUSEgeom/examples/run/01_Portofino -m /home/mariannamiola/Devel/MUSEgeom/examples/run/01_Portofino/out/surf/_subset_6000_absz__subset_6000.obj --vtk --tet --opt a100000000
+#TET
+#-M -p /home/mariannamiola/Devel/MUSEgeom/examples/run/01_Portofino -m /home/mariannamiola/Devel/MUSEgeom/examples/run/01_Portofino/out/surf/_subset_6000_absz__subset_6000.obj --vtk --tet --opt a100000000
 
-GRID
--G -p . --bbp 513415.0,4902845.0,20 --bbp 528045.0,4902845.0,20 --bbp 528045.0,4910595.0,20 --bbp 513415.0,4910595.0,20 --bbp 513415.0,4902845.0,-100.735 --bbp 528045.0,4902845.0,-100.735 --bbp 528045.0,4910595.0,-100.735 --bbp 513415.0,4910595.0,-100.735 --vtk --resx 200 --resy 200 --resz 50 --hex 
+#GRID
+#-G -p /home/mariannamiola/Devel/MUSEgeom/examples/run/01_Portofino --bbp 513415.000000,4902845.000000,-100.735190 --bbp 528045.000000,4902845.000000,-100.735190 --bbp 528045.000000,4910595.000000,-100.735190 --bbp 513415.000000,4910595.000000,-100.735190 --bbp 513415.000000,4902845.000000,20.000000 --bbp 528045.000000,4902845.000000,20.000000 --bbp 528045.000000,4910595.000000,20.000000 --bbp 513415.000000,4910595.000000,20.000000 --vtk --resx 10 --resy 10 --resz 10 --hex 
 
-SPLIT 
--S -p /home/mariannamiola/Devel/MUSEgeom/examples/run/01_Portofino -m /home/mariannamiola/Devel/MUSEgeom/examples/run/01_Portofino/out/volume/grid.vtk --boundary 
-/home/mariannamiola/Devel/MUSEgeom/examples/run/01_Portofino/out/surf/portofino_batimetria_LR_clean_absz_portofino_batimetria_LR_clean.obj --vtk --hex
+#SPLIT 
+#-S -p /home/mariannamiola/Devel/MUSEgeom/examples/run/01_Portofino -m /home/mariannamiola/Devel/MUSEgeom/examples/run/01_Portofino/out/volume/grid.vtk --boundary /home/mariannamiola/Devel/MUSEgeom/examples/run/01_Portofino/out/surf/portofino_batimetria_LR_clean_absz_portofino_batimetria_LR_clean.obj --vtk --hex
