@@ -1,6 +1,6 @@
 # MUSEgeom
 A toolkit for geometry modeling for environmental domains in geoscience.
-<p align="center"><img src="teaser.jpeg" width="500"></p>
+<p align="center"><img src="teaser.jpeg" width="800"></p>
 
 ## Clone
 We provide the commands to install MUSE. 
