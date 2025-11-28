@@ -1,5 +1,6 @@
 # MUSEgeom
 A toolkit for geometry modeling for environmental domains in geoscience.
+<p align="center"><img src="teaser.jpeg" width="500"></p>
 
 ## Clone
 We provide the commands to install MUSE. 
@@ -74,13 +75,16 @@ To guarantee replicability, data of our examples are provided in the _example_ f
 ## Citing us
 If you use our tool in your academic projects, please consider citing us using the following BibTeX entry:
 ```
-@inproceedings{miola2025stag,
-  author       = {Marianna Miola and Daniela Cabiddu and Simone Pittaluga and Micaela Raviola and Marino Vetuschi Zuccolini},
-  title        = {{A lightweight open-source tool for Meshing within Geosciences}},
-  year         = {2025},
-  booktitle    = {Smart Tools and Applications in Graphics - Eurographics Italian Chapter Conference},
-  publisher    = {The Eurographics Association},
-  note         = {Manuscript under pubblication in *STAG2025 Conference Proceedings*}
+@inproceedings{10.2312:stag.20251318,
+booktitle = {Smart Tools and Applications in Graphics - Eurographics Italian Chapter Conference},
+editor = {Comino Trinidad, Marc and Mancinelli, Claudio and Maggioli, Filippo and Romanengo, Chiara and Cabiddu, Daniela and Giorgi, Daniela},
+title = {{A lightweight open-source tool for Meshing within Geosciences}},
+author = {Miola, Marianna and Cabiddu, Daniela and Pittaluga, Simone and Raviola, Micaela and Zuccolini, Marino Vetuschi},
+year = {2025},
+publisher = {The Eurographics Association},
+ISSN = {2617-4855},
+ISBN = {978-3-03868-296-7},
+DOI = {10.2312/stag.20251318}
 }
 ```
 
