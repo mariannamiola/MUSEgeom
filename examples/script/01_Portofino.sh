@@ -14,7 +14,7 @@ BIN_DIR=${SCRIPT_DIR}/../../bin
 export PATH=${BIN_DIR}:$PATH
 
 export TOOL=${SCRIPT_DIR}/../..
-export DATA_SOURCE=${TOOL}/examples/data ##data directory: where input data lies
+export DATA_SOURCE=${TOOL}/examples/data/Portofino ##data directory: where input data lies
 
 export WORK_DIR=${TOOL}/examples/run ##project directory: where results lies
 mkdir -p ${WORK_DIR}
@@ -25,10 +25,10 @@ export WP=${WORK_DIR}/${PROJECT_NAME}
 
 
 # 1. Set input data
-export BOUNDARY=AOI
-export FORMAT0=gpkg
+export BOUNDARY=costa_rapallo_2_split
+export FORMAT0=shp
 
-export BATIM=portofino_batimetria_LR_clean
+export BATIM=Rapallo_6000
 export FORMAT1=xyz
 
 export INWP=${WP}/in
@@ -43,8 +43,8 @@ cp ${DATA_SOURCE}/${BATIM}.* ${INWP}
 
 # 2. Set flags
 #######################################################################
-export OPTSURF=a10000
-export OPTVOL=a100000000
+export OPTSURF=Ya10000
+export OPTVOL=Ya1000
 
 
 # 3. Starting script ...
@@ -61,35 +61,35 @@ export OUTSURF=${WP}/out/surf
 export OUTVOL=${WP}/out/volume
 
 ##Reading vector file and extracting boundary points
-${EXE} -V -p ${WP} --save --xyz --tri --obj --opt ${OPT}
+${EXE} -V -p ${WP} --save --xyz --tri --obj --opt ${OPTSURF}
 mv ${OUTSURF}/${BOUNDARY}_0@${FORMAT0}.xyz ${OUTSURF}/${BOUNDARY}.xyz
 
 ##Reading batimetry as point cloud with z-value filtering
-${EXE} -P -p ${WP} --points ${INWP}/${BATIM}.${FORMAT1} --axis Z --thresh 0.0 --boundary ${OUTSURF}/${BOUNDARY}.xyz --tri --obj
+${EXE} -P -p ${WP} --points ${INWP}/${BATIM}.${FORMAT1} --axis Z --thresh 0.0 --boundary ${OUTSURF}/${BOUNDARY}.xyz --tri --obj --tol 1e-8
 
-export LIGHTDATA=portofino_batimetria_LR_clean
-${EXE} -P -p ${WP} --points ${INWP}/${LIGHTDATA}.xyz --manip --axis Z --thresh 0.0 --tri --obj --csv --concave ##--boundary ${OUTSURF}/${BOUNDARY}.xyz
+#export LIGHTDATA=${BATIM}
+#${EXE} -P -p ${WP} --points ${INWP}/${LIGHTDATA}.xyz --manip --axis Z --thresh 0.0 --tri --obj --csv --boundary ${OUTSURF}/${BOUNDARY}.xyz
 
 ##Load and random sampling
-${EXE} -L -p ${WP} --m ${OUTSURF}/${LIGHTDATA}.obj --subset 6000 --csv
+#${EXE} -L -p ${WP} --m ${OUTSURF}/${LIGHTDATA}.obj --subset 6000 --csv
 
 ##2nd mesh from random sampled dataset
-${EXE} -P -p ${WP} --points ${OUTSURF}/_subset_6000.csv --manip --axis Z --thresh 0.0 --tri --obj --concave --opt ${OPTSURF} --meth MEAN
+#${EXE} -P -p ${WP} --points ${OUTSURF}/_subset_6000.csv --manip --axis Z --thresh 0.0 --tri --obj --concave --opt ${OPTSURF} --meth MEAN
 
 ##Offset mesh2 at absolute elevation
-${EXE} -O -p ${WP} -m ${OUTSURF}/_subset_6000.obj --abs -z 20.0 --obj
+${EXE} -O -p ${WP} -m ${OUTSURF}/${BATIM}.obj --delta -z -0.5 --obj
 
 ##Merging
-${EXE} -U -p ${WP} -m ${OUTSURF}/_subset_6000_absz.obj -m ${OUTSURF}/_subset_6000.obj --obj
+${EXE} -U -p ${WP} -m ${OUTSURF}/${BOUNDARY}.obj -m ${OUTSURF}/${BATIM}_dz.obj --obj
 
 ##Tetrahedral meshing
-${EXE} -M -p ${WP} -m ${OUTSURF}/_subset_6000_absz__subset_6000.obj --vtk --tet --opt ${OPTVOL}
+${EXE} -M -p ${WP} -m ${OUTSURF}/${BOUNDARY}_${BATIM}_dz.obj --vtk --tet --opt ${OPTVOL}
 
 ##Gridding the bounding box
-${EXE} -G -p ${WP} --bbp 513415.000000,4902845.000000,-100.735190 --bbp 528045.000000,4902845.000000,-100.735190 --bbp 528045.000000,4910595.000000,-100.735190 --bbp 513415.000000,4910595.000000,-100.735190 --bbp 513415.000000,4902845.000000,20.000000 --bbp 528045.000000,4902845.000000,20.000000 --bbp 528045.000000,4910595.000000,20.000000 --bbp 513415.000000,4910595.000000,20.000000 --vtk --resx 10 --resy 10 --resz 10 --hex 
+#${EXE} -G -p ${WP} --bbp 513415.000000,4902845.000000,-100.735190 --bbp 528045.000000,4902845.000000,-100.735190 --bbp 528045.000000,4910595.000000,-100.735190 --bbp 513415.000000,4910595.000000,-100.735190 --bbp 513415.000000,4902845.000000,20.000000 --bbp 528045.000000,4902845.000000,20.000000 --bbp 528045.000000,4910595.000000,20.000000 --bbp 513415.000000,4910595.000000,20.000000 --vtk --resx 10 --resy 10 --resz 10 --hex 
 
 ##Split 
-${EXE} -S -p ${WP} -m ${OUTVOL}/grid.vtk --boundary ${OUTSURF}/portofino_batimetria_LR_clean_absz_portofino_batimetria_LR_clean.obj --vtk --hex
+#${EXE} -S -p ${WP} -m ${OUTVOL}/grid.vtk --boundary ${OUTSURF}/portofino_batimetria_LR_clean_absz_portofino_batimetria_LR_clean.obj --vtk --hex
 
 
 ##Hexahedral meshing
