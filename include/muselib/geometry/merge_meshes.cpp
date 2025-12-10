@@ -119,9 +119,32 @@ void merge_and_wrap_meshes_old(const MUSE::SurfaceMesh<M,V,E,P> &mesh0, const MU
     std::vector<uint> bverts0 = mesh0.get_ordered_boundary_vertices();
     std::vector<uint> bverts1 = mesh1.get_ordered_boundary_vertices();
 
+    std::cout << "Boundary vertices mesh0: " << bverts0.size() << std::endl;
+    std::cout << "Boundary vertices mesh1: " << bverts1.size() << std::endl;
+
     std::map <uint, uint> map; //mappa per le corrispondenze tra indici first&second
     for(uint i =0; i< bverts0.size(); i++)
-        map.insert(std::pair<uint, uint> (bverts0.at(i), bverts1.at(i)));
+    {
+        for(uint j =0; j< bverts1.size(); j++)
+        {
+            cinolib::vec3d v0 = mesh0.vert(bverts0.at(i));
+            cinolib::vec3d v1 = mesh1.vert(bverts1.at(j));
+
+            cinolib::vec2d v0_2d = cinolib::vec2d(v0[0], v0[1]);
+            cinolib::vec2d v1_2d = cinolib::vec2d(v1[0], v1[1]);
+
+            if(v0_2d.dist(v1_2d) < 1e-06)
+            {
+                map.insert(std::pair<uint, uint> (bverts0.at(i), bverts1.at(j)));
+
+                //std::cout << std::setprecision(10) << "Mapping boundary vertex " << mesh0.vert(bverts0.at(i)) << " to " << mesh1.vert(bverts1.at(j)) << std::endl;
+
+                break;
+            }
+        }
+
+        
+    }
 
     //std::sort(bverts1.begin(), bverts1.end(), std::greater<uint>());
 
@@ -174,12 +197,12 @@ void merge_and_wrap_meshes_old(const MUSE::SurfaceMesh<M,V,E,P> &mesh0, const MU
             //Aggiunta dei triangoli (con schema antiorario)
             std::vector<uint> polysA, polysB;
             polysA.push_back(curr0);
-            polysA.push_back(curr1+offset);
             polysA.push_back(prox1+offset);
+            polysA.push_back(curr1+offset);
 
             polysB.push_back(curr0);
-            polysB.push_back(prox1+offset);
             polysB.push_back(prox0);
+            polysB.push_back(prox1+offset);
 
             mesh_merge.poly_add(polysA);
             mesh_merge.poly_add(polysB);
